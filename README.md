@@ -1,11 +1,6 @@
 # CalculusOfInductiveTypes
 
-**TODO: Add description**
-
-## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `calculus_of_inductive_types` to your list of dependencies in `mix.exs`:
+Based heavily on the [Haskell Morte Library](https://github.com/Gabriella439/Haskell-Morte-Library/blob/main/src/Morte/Core.hs), a small toy language that implements the Calculus of Constructions with Inductive Types, with the goal of turning it into a full-fledged proof assistant. The current functionality is just a tokenizer and parser, this will change soon!
 
 ```elixir
 def deps do
@@ -14,8 +9,3 @@ def deps do
   ]
 end
 ```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/calculus_of_inductive_types>.
-
