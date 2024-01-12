@@ -7,16 +7,17 @@ expr -> lambda '(' label ':' expr ')' arrow expr : {lam, get_token('$3'), '$5', 
 expr -> pi     '(' label ':' expr ')' arrow expr : {pi, get_token('$3'), '$5', '$8'}.
 expr -> bexpr arrow expr : {pi, '_', '$1', '$3'}.
 
-vexpr -> label '@' number : {v, get_token('$1'), '$3'}.
+vexpr -> label '@' number : {v, get_token('$1'), get_token('$3')}.
 vexpr -> label : {v, get_token('$1'), 0}.
 
 bexpr -> bexpr aexpr :{app, '$1', '$2'}.
 bexpr -> aexpr : '$1'.
 
 aexpr -> vexpr : {var, '$1'}.
-aexpr -> star : {const, '$1'}.
-aexpr -> box : {const, '$1'}.
+aexpr -> star : {const, get_const_token('$1')}.
+aexpr -> box :  {const, get_const_token('$1')}.
 aexpr -> '(' expr ')' : '$2'.
 
 Erlang code.
 get_token({_, _, Token}) -> Token.
+get_const_token({Token, _})    -> Token.

@@ -20,8 +20,8 @@ BOX          : {token, {box,    TokenLine}}.
 
 
 
-{FST}{LABELCHAR}*|\(\s?{OPCHAR}+\s?\) : {token, {label, TokenLine, TokenChars}}.
-{DIGIT}                               : {token, {digit, TokenLine, list_to_integer(TokenChars)}}.
+{FST}{LABELCHAR}*|\(\s?{OPCHAR}+\s?\) : {token, {label,  TokenLine, list_to_atom(TokenChars)}}.
+{DIGIT}                               : {token, {number, TokenLine, list_to_integer(TokenChars)}}.
 
 {WHITESPACE}+ : skip_token.
 --.*          : skip_token.         
