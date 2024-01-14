@@ -1,4 +1,5 @@
 defmodule CoreTests do
+  require CalculusOfInductiveTypes
   use ExUnit.Case
   doctest CalculusOfInductiveTypes
 
@@ -86,6 +87,15 @@ defmodule CoreTests do
       )
   end
 
+  test "whnf application" do
+    {:ok, tokens, _} = :lexer.string('(\\(x : * -> *) -> x) (\\(y : *) -> y)')
+    {:ok, abnormal} = :parser.parse(tokens)
+
+    {:ok, tokens, _} = :lexer.string('\\(y : *) -> y')
+    {:ok, whnf} = :parser.parse(tokens)
+    assert CalculusOfInductiveTypes.whnf(abnormal) == whnf
+  end
+
   test "whnf works" do
     {:ok, tokens, _} = :lexer.string('(\\(x:A) -> x) (\\(x:B) -> x)')
     {:ok, input} = :parser.parse(tokens)
@@ -141,10 +151,101 @@ defmodule CoreTests do
     ')
     {:ok, abnormal} = :parser.parse(tokens)
 
-
     {:ok, tokens, _} = :lexer.string('\\(a : *) -> \\(l : \\\/(x : *) -> (a -> x -> x) -> x -> x) -> l')
     {:ok, normal} = :parser.parse(tokens)
 
     assert CalculusOfInductiveTypes.normalize(abnormal) == normal
+  end
+
+  test "normalize edge case from reddit" do
+    # this case is here because the github that I looked at for help with this had incorrect behavor on this fn
+    {:ok, tokens, _} = :lexer.string('(\\(x : \\\/(x : *) -> *) -> \\(y : *) -> \\(z : *) -> x y) (\\(x : *) -> x)')
+    {:ok, abnormal} = :parser.parse(tokens)
+
+    {:ok, tokens, _} = :lexer.string('\\(y : *) -> \\(z : *) -> y')
+    {:ok, normal} = :parser.parse(tokens)
+
+    assert CalculusOfInductiveTypes.normalize(abnormal) == normal
+  end
+
+  test "insert var into context" do
+    ctx  = %{{:v, :x, 0} => {:const, :star}, {:v, :y, 0} => {:var, {:v, :x, 0}}}
+    ctx1 = CalculusOfInductiveTypes.insert(ctx, :x, {:var, {:v, :y, 0}})
+
+    assert ctx1 == %{{:v, :x, 1} => {:const, :star}, {:v, :y, 0} => {:var, {:v, :x, 1}}, {:v, :x, 0} => {:var, {:v, :y, 0}}}
+  end
+
+  test "equivalence of fns" do
+    # \x -> \y -> \z -> z y x
+  #  \a -> \b -> \c -> c b a
+    {:ok, tokens, _} = :lexer.string('\\(x:*) -> \\(y:*) -> \\(z:*) -> z y x')
+    {:ok, left} = :parser.parse(tokens)
+
+    {:ok, tokens, _} = :lexer.string('\\(a:*) -> \\(b:*) -> \\(c:*) -> c b a')
+    {:ok, right} = :parser.parse(tokens)
+
+    assert CalculusOfInductiveTypes.eq(left, right)
+  end
+
+  test "type unbound variable typeerror" do
+    ast = {:var, {:v, :x, 0}}
+    assert CalculusOfInductiveTypes.typeOf(ast) == {{:TypeError, [:UnboundVariable, {:var, {:v, :x, 0}}]}, {:var, {:v, :x, 0}}, %{}}
+  end
+
+  test "type * : box" do
+    ast = {:const, :star}
+    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
+    assert t  == {:const, :box}
+  end
+
+  test "type of lambda :: pi" do
+    {:ok, tokens, _} = :lexer.string('\\(x : *) -> x')
+    {:ok, ast} = :parser.parse(tokens)
+    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
+
+    assert t == {:pi, :x, {:const, :star}, {:const, :star}}
+  end
+
+  test "type check application of a function" do
+    {:ok, tokens, _} = :lexer.string('(\\(x : * -> *) -> x) (\\(y : *) -> y)')
+    {:ok, ast} = :parser.parse(tokens)
+    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
+
+    assert t == {:pi, :_, {:const, :star}, {:const, :star}}
+  end
+
+
+  test "type id on lists" do
+    {:ok, tokens, _} = :lexer.string('
+    (    \\(List : * -> *)
+    ->   \\(map  : forall (a : *) -> forall (b : *) -> (a -> b) -> List a -> List b)
+    ->   \\(id   : forall (a : *) -> a -> a)
+    ->   \\(a : *) -> map a a (id a)
+    )
+
+    -- List
+    (\\(a : *) -> forall (x : *) -> (a -> x -> x) -> x -> x)
+
+    -- map
+    (   \\(a : *)
+    ->  \\(b : *)
+    ->  \\(f : a -> b)
+    ->  \\(l : forall (x : *) -> (a -> x -> x) -> x -> x)
+    ->  \\(x : *)
+    ->  \\(Cons : b -> x -> x)
+    ->  \\(Nil: x)
+    ->  l x (\\(va : a) ->\\(vx : x) -> Cons (f va) vx) Nil
+    )
+
+    -- id
+    (\\(a : *) -> \\(va : a) -> va)
+    ')
+    {:ok, ast} = :parser.parse(tokens)
+    {:ok, t, ctx} = CalculusOfInductiveTypes.typeOf(ast)
+
+    {:ok, tokens, _} = :lexer.string('\\\/(a : *) -> (\\\/(x : *) -> (a -> x -> x) -> x -> x) -> \\\/(x : *) -> (a -> x -> x) -> x -> x')
+    {:ok, ast} = :parser.parse(tokens)
+
+    assert CalculusOfInductiveTypes.eq(t,ast)
   end
 end

@@ -154,7 +154,7 @@ defmodule CalculusOfInductiveTypes do
     end
   end
 
-  # ETA =>
+  # eta reduction =>
   # \x -> f x (x not free in f) => f
   # question to consider for later, does change the behavior or is it just an optimization
   def normalize({:lam, x, a, b}) do
@@ -166,5 +166,138 @@ defmodule CalculusOfInductiveTypes do
     end
   end
 
+  @type context :: %{{:v, atom, integer} => expr}
+  @spec insert(context, atom, expr) :: context()
+  def insert(ctx, x, e) do
+    Map.new(ctx, fn
+      {{:v, ^x, n}, e1} -> {{:v, x, n+1}, shift(1, x, e1)}
+      {v, e2} -> {v, shift(1, x, e2)}
+    end)
+    |> Map.put({:v, x, 0}, e)
+  end
 
+  # as variables are bound in the expression, we build a context of associations, then we check that the variables
+  # appear at the same point in the list, whenever that is
+  #  \x -> \y -> \z -> z y x
+  #  \a -> \b -> \c -> c b a
+
+  #                z,c  -> xl, xr
+  #   (x,a) (y,b) (z,c) -> ctx
+
+  @spec match(atom, integer, atom, integer, [{atom, atom}]) :: boolean()
+  def match(xl, nl, xr, nr, []), do: xl == xr && nl == nr
+  def match(xl,  0, xr,  0, [{xl1, xr1}|_])  when xl == xl1 and xr == xr1, do: true
+  def match(xl, nl, xr, nr, [{xl1, xr1}|xs]) do
+    match(
+      xl,
+      (if xl == xl1, do: nl - 1, else: nl),
+      xr,
+      (if xr == xr1, do: nr - 1, else: nr),
+      xs
+    )
+  end
+
+  @spec eq(expr, expr) :: boolean()
+  def eq(e1, e2) do
+    go = fn
+      {:const, s}, {:const, t}, _, _-> s == t
+      {:var, {:v, xl, nl}}, {:var, {:v, xr, nr}}, ctx, _ ->
+        match(xl, nl, xr, nr, ctx)
+      {:lam, xl, tL, bl}, {:lam, xr, tR, br}, ctx, go ->
+        if go.(tL, tR, ctx, go) do # check types are eq
+          ctx1 = [{xl, xr}|ctx] #    add vars to context
+          go.(bl, br, ctx1, go) #    check bound sections are eq
+        else false end
+      {:pi, xl, tL, bl}, {:pi, xr, tR, br}, ctx, go ->
+        if go.(tL, tR, ctx, go) do # same as lambda
+          ctx1 = [{xl, xr}|ctx]
+          go.(bl, br, ctx1, go)
+        else false end
+      {:app, fl, al}, {:app, fr, ar}, ctx, go ->
+        if go.(fl, fr, ctx, go), do: go.(al, ar, ctx, go), else: false
+      _, _, _, _ -> false
+    end
+    go.(e1, e2, [], go)
+  end
+
+  @spec f({:TypeError, [any]} | :ok, {:TypeError, [any]} | :ok) :: {:TypeError, [any]}
+  def f(s1, s2) do
+    go = fn
+      :ok, :ok -> :ok
+      {:TypeError, l}, :ok -> {:TypeError, l}
+      :ok, {:TypeError, l} -> {:TypeError, l}
+      {:TypeError, l1}, {:TypeError, l2} -> {:TypeError, [l1|l2]}
+    end
+    go.(s1, s2)
+  end
+
+  def typeOf(e), do: typeWith(%{}, e)
+
+  @spec typeWith(context, expr) :: {{:TypeError, atom} | :ok, expr, context}
+  def typeWith(ctx,
+  {:const, c}) do
+    case axiom(c) do
+      {:ok, s} -> {:ok, {:const, s}, ctx}
+      {:error, :TypeError} -> {{:TypeError, [:UntypedBox]}, {:const, c}, ctx}
+    end
+  end
+
+  def typeWith(ctx,
+  {:var, v}=e) do
+    case ctx do
+      %{^v => t} -> {:ok, t, ctx}
+      _ -> {{:TypeError, [:UnboundVariable, e]}, e, ctx}
+    end
+  end
+
+  def typeWith(ctx,
+  {:lam, x, tA, b}) do
+    {s1, _, _} = typeWith(ctx, tA)
+    ctx1 = insert(ctx, x, tA)
+    {s2, b1, _} = typeWith(ctx1, b)
+    pi = {:pi, x, tA, b1}
+    {s3, _, _} = typeWith(ctx, pi)
+    {f(s1, s2) |> f(s3), pi, ctx}
+  end
+
+  def typeWith(ctx,
+  {:pi, x, tA, tB}=e) do
+    {s1, eS, _} = typeWith(ctx, tA)
+    {s2, s} = case whnf(eS) do
+      {:const, s} -> {:ok, s}
+      _ -> {{:TypeError, [ctx, e, :InvalidInputType]}, :box}
+    end
+    ctx1 = insert(ctx, x, tA)
+    {s3, eT, _} = typeWith(ctx1, tB)
+    {s4, t} = case whnf(eT) do
+      {:const, t} -> {:ok, t}
+      _ -> {{:TypeError, [ctx, e, :InvalidInputType]}, :box}
+    end
+    {f(s1, s2) |> f(s3) |> f(s4), {:const, rule(s, t)}, ctx1}
+  end
+
+  # here, and only here, the formula sometimes wouldn't be correct
+  # there would be two top level applications, and it wouldn't
+  # get to the actual Pi term without an error. It's possible that this logic is fine. I'm not sure though
+  # e := {:app,
+  #      {:app, /* some big Pi term */, /* some big Pi term */},
+  #             /* some big Pi term */, }
+  def typeWith(ctx,
+  {:app, f, a}=e) do
+    {s1, e1, _} = typeWith(ctx, whnf(f))
+    {s2, x, tA, tB} = case e1 do
+      {:pi, x, tA, tB} -> {:ok, x, tA, tB}
+      _ -> {:TypeError, [ctx, typeWith(ctx, e1), :NotAFunction], e, {:const, :silly}, {:const, :silly}, {:const, :silly}}
+    end
+    {s3, tA1, _} = typeWith(ctx, a)
+    if eq(tA, tA1) do
+      a1 = shift(1, x, a)
+      tB1 = subst(x, 0, a1, tB)
+      {f(s1, s2) |> f(s3), shift(-1, x, tB1), ctx}
+    else
+      nf_A  = normalize(tA)
+      nf_A1 = normalize(tA1)
+      {{:TypeError, [ctx, e, :TypeMismatch, nf_A, nf_A1]}, {:app, nf_A, nf_A1}, ctx}
+    end
+  end
 end
