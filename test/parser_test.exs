@@ -24,6 +24,12 @@ defmodule ParserTests do
     assert ast == {:var, {:v, :x, 1}}
   end
 
+  test "product type" do
+    {:ok, tokens, _} = :lexer.string('\\\/ (a : A) -> B')
+    {:ok, ast} = :parser.parse(tokens)
+    assert ast == {:pi, :a, {:var, {:v, :A, 0}}, {:var, {:v, :B, 0}}}
+  end
+
   test "unmatched parens" do
     {:ok, tokens, _} = :lexer.string('\\(a : a) -> \\(x : a -> x \n (x)')
     {:error, errors} = :parser.parse(tokens)
