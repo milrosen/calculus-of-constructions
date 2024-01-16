@@ -41,4 +41,37 @@ defmodule ParserTests do
     {:error, errors} = :parser.parse(tokens)
     assert errors
   end
+
+  test "let" do
+    {:ok, tokens, _} = :lexer.string('let (id : A->A) = (\\(x:A) -> x) in C') # ((\id : A->A) -> C) (\(x:A)->x)
+    {:ok, let} = :parser.parse(tokens)
+    {:ok, tokens, _} = :lexer.string('(\\(id : A -> A) -> C) (\\(x:A) -> x)')
+    {:ok, default} = :parser.parse(tokens)
+    assert let == default
+  end
+
+  test "more complex let" do
+    {:ok, tokens, _} = :lexer.string('let (th1 : (forall(P : *) -> forall(Q : *) -> P -> Q -> P)) =
+                                         \\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp in C')
+    {:ok, let} = :parser.parse(tokens)
+
+    {:ok, tokens, _} = :lexer.string('(\\(th1 : (forall(P : *) -> forall(Q : *) -> P -> Q -> P)) -> C)
+                                          (\\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp)')
+    {:ok, default} = :parser.parse(tokens)
+    assert let == default
+  end
+
+  test "nested let" do
+    {:ok, tokens, _} = :lexer.string('\\(P : *) -> \\(Q : *) ->
+                                      let (th1 : (forall(P : *) -> forall(Q : *) -> P -> Q -> P)) =
+                                      \\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp in C')
+    {:ok, let} = :parser.parse(tokens)
+
+    {:ok, tokens, _} = :lexer.string('\\(P : *) -> \\(Q : *) ->
+                                          (\\(th1 : (forall(P : *) -> forall(Q : *) -> P -> Q -> P)) -> C)
+                                          (\\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp)')
+
+    {:ok, default} = :parser.parse(tokens)
+    assert let == default
+  end
 end

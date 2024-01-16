@@ -24,9 +24,9 @@ defmodule CalculusOfInductiveTypes do
   @type expr ::
     {:const, const} |
     {:var, {:v, atom, integer}} |
-    {:lam, atom, expr(), expr()} |
-    {:pi,  atom, expr(), expr()} |
-    {:app, expr, expr()}
+    {:lam, atom,  expr(), expr()} |
+    {:pi,  atom,  expr(), expr()} |
+    {:app, expr(), expr()}
 
   # adds n to each free x@n in e.
   @spec shift(integer, atom, expr) :: expr
@@ -70,6 +70,7 @@ defmodule CalculusOfInductiveTypes do
   # this is because we are in the CoC, and the application rule is the same for types and terms,
   # where the type of a function is expressed as a dependent product, reguardless of what its abstracting
 
+
   # substitue(x n C B) -> B[x@n := C]
   @spec subst(atom, integer, expr, expr) :: expr
   def subst(x, n, e1,
@@ -85,7 +86,6 @@ defmodule CalculusOfInductiveTypes do
   {:lam, y, a, b}) do
     n1 = if x == y, do: n + 1, else: n
     b1 = subst(x, n1, shift(1, y, e1), b)
-
     {:lam, y, subst(x, n, e1, a), b1}
   end
 
@@ -93,7 +93,6 @@ defmodule CalculusOfInductiveTypes do
   {:pi, y, a, b}) do
     n1 = if x == y, do: n + 1, else: n
     b1 = subst(x, n1, shift(1, y, e1), b)
-
     {:pi, y, subst(x, n, e1, a), b1}
   end
 
@@ -220,6 +219,8 @@ defmodule CalculusOfInductiveTypes do
     go.(e1, e2, [], go)
   end
 
+  # no monoid in elixir, so this is a little fn that defines how I want error messages to compose.
+  # s1...sn in the type fn stand for the State of the nth typewith call
   @spec f({:TypeError, [any]} | :ok, {:TypeError, [any]} | :ok) :: {:TypeError, [any]}
   def f(s1, s2) do
     go = fn
@@ -233,7 +234,7 @@ defmodule CalculusOfInductiveTypes do
 
   def typeOf(e), do: typeWith(%{}, e)
 
-  @spec typeWith(context, expr) :: {{:TypeError, atom} | :ok, expr, context}
+  @spec typeWith(context, expr) :: {{:TypeError, [any]} | :ok, expr, context}
   def typeWith(ctx,
   {:const, c}) do
     case axiom(c) do
@@ -262,32 +263,27 @@ defmodule CalculusOfInductiveTypes do
 
   def typeWith(ctx,
   {:pi, x, tA, tB}=e) do
-    {s1, eS, _} = typeWith(ctx, tA)
-    {s2, s} = case whnf(eS) do
+    {s1, eS, _} = typeWith(ctx, whnf(tA))
+    {s2, s} = case eS do
       {:const, s} -> {:ok, s}
-      _ -> {{:TypeError, [ctx, e, :InvalidInputType]}, :box}
+      _ -> {{:TypeError, [ctx, e, :InvalidInputType]}, :star}
     end
     ctx1 = insert(ctx, x, tA)
-    {s3, eT, _} = typeWith(ctx1, tB)
-    {s4, t} = case whnf(eT) do
+    {s3, eT, _} = typeWith(ctx1, whnf(tB))
+    {s4, t} = case eT do
       {:const, t} -> {:ok, t}
-      _ -> {{:TypeError, [ctx, e, :InvalidInputType]}, :box}
+      _ -> {{:TypeError, [ctx, e, :InvalidInputType]}, :star}
     end
     {f(s1, s2) |> f(s3) |> f(s4), {:const, rule(s, t)}, ctx1}
   end
 
-  # here, and only here, the formula sometimes wouldn't be correct
-  # there would be two top level applications, and it wouldn't
-  # get to the actual Pi term without an error. It's possible that this logic is fine. I'm not sure though
-  # e := {:app,
-  #      {:app, /* some big Pi term */, /* some big Pi term */},
-  #             /* some big Pi term */, }
   def typeWith(ctx,
   {:app, f, a}=e) do
+
     {s1, e1, _} = typeWith(ctx, whnf(f))
     {s2, x, tA, tB} = case e1 do
       {:pi, x, tA, tB} -> {:ok, x, tA, tB}
-      _ -> {:TypeError, [ctx, typeWith(ctx, e1), :NotAFunction], e, {:const, :silly}, {:const, :silly}, {:const, :silly}}
+      _ -> {:TypeError, [ctx, typeWith(ctx, e1), :NotAFunction], e, e, e, e}
     end
     {s3, tA1, _} = typeWith(ctx, a)
     if eq(tA, tA1) do

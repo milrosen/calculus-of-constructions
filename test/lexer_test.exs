@@ -15,4 +15,14 @@ defmodule LexerTests do
     {:error, errors, _} = :lexer.string('#')
     assert errors == {1, :lexer, {:illegal, ~c"#"}}
   end
+
+  test "let" do
+    {:ok, tokens, _} = :lexer.string('let (id : A->A) = (\\(x:A) -> x) in C') # ((\id : A->A) -> C) (\(x:A)->x)
+    assert tokens == [{:let, 1}, {:"(", 1}, {:label, 1, :id}, {:":", 1}, {:label, 1, :A}, {:arrow, 1}, {:label, 1, :A}, {:")", 1}, {:=, 1}, {:"(", 1}, {:lambda, 1}, {:"(", 1}, {:label, 1, :x}, {:":", 1}, {:label, 1, :A}, {:")", 1}, {:arrow, 1}, {:label, 1, :x}, {:")", 1}, {:in, 1}, {:label, 1, :C}]
+  end
+
+  test "var with number" do
+    {:ok, tokens, _} = :lexer.string('t1')
+    assert tokens == [{:label, 1, :t1}]
+  end
 end

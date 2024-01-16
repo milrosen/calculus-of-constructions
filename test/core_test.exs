@@ -1,3 +1,5 @@
+# The little Typer
+
 defmodule CoreTests do
   require CalculusOfInductiveTypes
   use ExUnit.Case
@@ -247,5 +249,22 @@ defmodule CoreTests do
     {:ok, ast} = :parser.parse(tokens)
 
     assert CalculusOfInductiveTypes.eq(t,ast)
+  end
+
+  test "type of P -> Q -> P for all (P, Q) : *" do
+    {:ok, tokens, _} = :lexer.string('\\(C : *) -> \\(P : *) -> \\(Q : *) ->
+      let (th1 : (forall(P : *) -> forall(Q : *) -> P -> Q -> P)) =
+      \\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp in C')
+    {:ok, ast} = :parser.parse(tokens)
+
+    {:ok, _, _} = CalculusOfInductiveTypes.typeOf(ast)
+  end
+
+  test "type of \\y,x -> y when x is poorly typed" do
+    {:ok, tokens, _} = :lexer.string('let (IgnoreFirst : * -> (* -> *) -> *) = \\(x : *) -> \\(y : *) -> y in
+                                          IgnoreFirst BOX (\\(x : *) -> x)')
+    {:ok, ast} = :parser.parse(tokens)
+    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
+    assert t == 3
   end
 end
