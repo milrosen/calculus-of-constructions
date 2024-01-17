@@ -216,7 +216,7 @@ defmodule CalculusOfInductiveTypes do
         if go.(fl, fr, ctx, go), do: go.(al, ar, ctx, go), else: false
       _, _, _, _ -> false
     end
-    go.(e1, e2, [], go)
+    go.(normalize(e1), normalize(e2), [], go)
   end
 
   # no monoid in elixir, so this is a little fn that defines how I want error messages to compose.
@@ -285,7 +285,7 @@ defmodule CalculusOfInductiveTypes do
       {:pi, x, tA, tB} -> {:ok, x, tA, tB}
       _ -> {:TypeError, [ctx, typeWith(ctx, e1), :NotAFunction], e, e, e, e}
     end
-    {s3, tA1, _} = typeWith(ctx, a)
+    {s3, tA1, _} = typeWith(ctx, whnf(a))
     if eq(tA, tA1) do
       a1 = shift(1, x, a)
       tB1 = subst(x, 0, a1, tB)
@@ -293,7 +293,7 @@ defmodule CalculusOfInductiveTypes do
     else
       nf_A  = normalize(tA)
       nf_A1 = normalize(tA1)
-      {{:TypeError, [ctx, e, :TypeMismatch, nf_A, nf_A1]}, {:app, nf_A, nf_A1}, ctx}
+      {{:TypeError, [ctx, e, :TypeMismatch, nf_A, :AND,  nf_A1]}, {:app, nf_A, nf_A1}, ctx}
     end
   end
 end
