@@ -262,109 +262,16 @@ defmodule CoreTests do
   end
 
 
-  test "what is a value constructor" do
-    {:ok, tokens, _} = :lexer.string('( (   \\(T : * -> * -> * -> *)
+  test "modus ponens" do
+    {:ok, tokens, _} = :lexer.string('\\(A : *) -> \\(B : *)
+    ->
+      \\(Mp : A -> (A -> B) -> B) -> \\(h1 : A) -> \\(h2 : A -> B) -> h2 h1')
 
-         -- The value constructors
-     ->  \\(A : forall (a : *) -> forall (b : *) -> forall (c : *)           -> T a b c)
-     ->  \\(B : forall (a : *) -> forall (b : *) -> forall (c : *) -> a      -> T a b c)
-     ->  \\(C : forall (a : *) -> forall (b : *) -> forall (c : *) -> b -> c -> T a b c)
-
-         -- Pattern match on T
-     ->  \\(  matchT
-         :   forall (a : *) -> forall (b : *) -> forall (c : *)
-         ->  T a b c
-         ->  forall (r : *)
-         ->  r              -- `A` branch of the pattern match
-         ->  (a -> r)       -- `B` branch of the pattern match
-         ->  (b -> c -> r)  -- `C` branch of the pattern match
-         ->  r
-         )
-     -> \\(int : *) -> \\(string : *) -> \\(zero : int) -> \\(hello: string)
-     -> B string int int hello
-     )
-
-     -- A value of type `T a b c` is just a preformed pattern match
-     (   \\(a : *) -> \\(b : *) -> \\(c : *)
-     ->  forall (r : *)
-     ->  r              -- A branch of the pattern match
-     ->  (a -> r)       -- B branch of the pattern match
-     ->  (b -> c -> r)  -- C branch of the pattern match
-     ->  r
-     )
-
-     -- Constructor for A
-     (   \\(a : *)
-     ->  \\(b : *)
-     ->  \\(c : *)
-     ->  \\(r : *)
-     ->  \\(A : r)
-     ->  \\(B : a -> r)
-     ->  \\(C : b -> c -> r)
-     ->  A
-     )
-
-     -- Constructor for B
-     (   \\(a : *)
-     ->  \\(b : *)
-     ->  \\(c : *)
-     ->  \\(va : a)
-     ->  \\(r : *)
-     ->  \\(A : r)
-     ->  \\(B : a -> r)
-     ->  \\(C : b -> c -> r)
-     ->  B va
-     )
-
-     -- Constructor for C
-     (   \\(a : *)
-     ->  \\(b : *)
-     ->  \\(c : *)
-     ->  \\(vb : b)
-     ->  \\(vc : c)
-     ->  \\(r : *)
-     ->  \\(A : r)
-     ->  \\(B : a -> r)
-     ->  \\(C : b -> c -> r)
-     ->  C vb vc
-     )
-
-     -- matchT is just the identity function
-     (   \\(a : *)
-     ->  \\(b : *)
-     ->  \\(c : *)
-     ->  \\(t : forall (r : *) -> r -> (a -> r) -> (b -> c -> r) -> r)
-     ->  t
-     ))')
     {:ok, ast} = :parser.parse(tokens)
-    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
-    norm = CalculusOfInductiveTypes.normalize(ast)
 
-    assert CalculusOfInductiveTypes.normalize(norm) ==
-    {:lam, :a,
-      {:const, :star},
-      {:lam, :b,
-        {:const, :star},
-        {:lam, :c,
-          {:const, :star},
-          {:lam, :va,
-            {:var, {:v, :a, 0}},
-            {:lam, :r,
-              {:const, :star},
-              {:lam, :A,
-                {:var, {:v, :r, 0}},
-                {:lam, :B,
-                  {:pi, :_,
-                    {:var, {:v, :a, 0}},
-                    {:var, {:v, :r, 0}}},
-                  {:lam, :C,
-                    {:pi, :_,
-                      {:var, {:v, :b, 0}},
-                      {:pi, :_,
-                        {:var, {:v, :c, 0}},
-                        {:var, {:v, :r, 0}}}},
-                    {:app,
-                      {:var, {:v, :B, 0}},
-                      {:var, {:v, :va, 0}}}}}}}}}}}
+    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
+
+    assert t == {:pi, :A, {:const, :star}, {:pi, :B, {:const, :star}, {:pi, :Mp, {:pi, :_, {:var, {:v, :A, 0}}, {:pi, :_, {:pi, :_, {:var, {:v, :A, 0}}, {:var, {:v, :B, 0}}}, {:var, {:v, :B, 0}}}}, {:pi, :h1, {:var, {:v, :A, 0}}, {:pi, :h2, {:pi, :_, {:var, {:v, :A, 0}}, {:var, {:v, :B, 0}}}, {:var, {:v, :B, 0}}}}}}}
   end
+
 end

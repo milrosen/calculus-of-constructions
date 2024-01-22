@@ -266,13 +266,13 @@ defmodule CalculusOfInductiveTypes do
     {s1, eS, _} = typeWith(ctx, whnf(tA))
     {s2, s} = case eS do
       {:const, s} -> {:ok, s}
-      _ -> {{:TypeError, [ctx, e, :InvalidInputType]}, :star}
+      _ -> {{:TypeError, [:InvalidInputType]}, :star}
     end
     ctx1 = insert(ctx, x, tA)
     {s3, eT, _} = typeWith(ctx1, whnf(tB))
     {s4, t} = case eT do
       {:const, t} -> {:ok, t}
-      _ -> {{:TypeError, [ctx, e, :InvalidInputType]}, :star}
+      _ -> {{:TypeError, [:InvalidInputType]}, :star}
     end
     {f(s1, s2) |> f(s3) |> f(s4), {:const, rule(s, t)}, ctx1}
   end
@@ -283,7 +283,7 @@ defmodule CalculusOfInductiveTypes do
     {s1, e1, _} = typeWith(ctx, whnf(f))
     {s2, x, tA, tB} = case e1 do
       {:pi, x, tA, tB} -> {:ok, x, tA, tB}
-      _ -> {:TypeError, [ctx, typeWith(ctx, e1), :NotAFunction], e, e, e, e}
+      _ -> {:TypeError, [e1, :NotAFunction], e, e, e, e}
     end
     {s3, tA1, _} = typeWith(ctx, whnf(a))
     if eq(tA, tA1) do
