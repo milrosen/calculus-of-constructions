@@ -63,13 +63,17 @@ defmodule ParserTests do
 
   test "nested let" do
     {:ok, tokens, _} = :lexer.string('\\(P : *) -> \\(Q : *) ->
-                                      let (th1 : (forall(P : *) -> forall(Q : *) -> P -> Q -> P)) =
-                                      \\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp in C')
+                                      let (th1 : *) =
+                                      \\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp in
+                                      let (th2 : *) =
+                                      \\(P : *) -> \\(F : P -> Q) -> \\(hp : *) -> F hp in
+                                      C')
     {:ok, let} = :parser.parse(tokens)
 
     {:ok, tokens, _} = :lexer.string('\\(P : *) -> \\(Q : *) ->
-                                          (\\(th1 : (forall(P : *) -> forall(Q : *) -> P -> Q -> P)) -> C)
-                                          (\\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp)')
+                                          ((\\(th1 : *) -> \\(th2 : *) -> C)
+                                          (\\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp)
+                                          (\\(P : *) -> \\(F : P -> Q) -> \\(hp : *) -> F hp))')
 
     {:ok, default} = :parser.parse(tokens)
     assert let == default

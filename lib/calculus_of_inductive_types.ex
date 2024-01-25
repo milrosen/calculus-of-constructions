@@ -227,7 +227,7 @@ defmodule CalculusOfInductiveTypes do
       :ok, :ok -> :ok
       {:TypeError, l}, :ok -> {:TypeError, l}
       :ok, {:TypeError, l} -> {:TypeError, l}
-      {:TypeError, l1}, {:TypeError, l2} -> {:TypeError, [l1|l2]}
+      {:TypeError, l1}, {:TypeError, _} -> {:TypeError, l1}
     end
     go.(s1, s2)
   end
@@ -258,7 +258,7 @@ defmodule CalculusOfInductiveTypes do
     {s2, b1, _} = typeWith(ctx1, b)
     pi = {:pi, x, tA, b1}
     {s3, _, _} = typeWith(ctx, pi)
-    {f(s1, s2) |> f(s3), pi, ctx}
+    {f(f(s1, s2), s3), pi, ctx}
   end
 
   def typeWith(ctx,
@@ -274,26 +274,25 @@ defmodule CalculusOfInductiveTypes do
       {:const, t} -> {:ok, t}
       _ -> {{:TypeError, [:InvalidInputType]}, :star}
     end
-    {f(s1, s2) |> f(s3) |> f(s4), {:const, rule(s, t)}, ctx1}
+    {f(f(f(s1, s2), s3), s4), {:const, rule(s, t)}, ctx1}
   end
 
   def typeWith(ctx,
   {:app, f, a}=e) do
-
-    {s1, e1, _} = typeWith(ctx, whnf(f))
-    {s2, x, tA, tB} = case e1 do
+    {s1, e1, _} = typeWith(ctx, f)
+    {s2, x, tA, tB} = case whnf(e1) do
       {:pi, x, tA, tB} -> {:ok, x, tA, tB}
-      _ -> {:TypeError, [e1, :NotAFunction], e, e, e, e}
+      _ -> {{:TypeError, [e1, :NotAFunction]}, e, e, e}
     end
-    {s3, tA1, _} = typeWith(ctx, whnf(a))
+    {s3, tA1, _} = typeWith(ctx, a)
     if eq(tA, tA1) do
       a1 = shift(1, x, a)
       tB1 = subst(x, 0, a1, tB)
-      {f(s1, s2) |> f(s3), shift(-1, x, tB1), ctx}
+      {f(f(s1, s2), s3), shift(-1, x, tB1), ctx}
     else
       nf_A  = normalize(tA)
       nf_A1 = normalize(tA1)
-      {{:TypeError, [ctx, e, :TypeMismatch, nf_A, :AND,  nf_A1]}, {:app, nf_A, nf_A1}, ctx}
+      {{:TypeError, [:TypeMismatch, nf_A, :AND, nf_A1]}, e, ctx}
     end
   end
 end

@@ -1,7 +1,6 @@
-# The little Typer
-
 defmodule CoreTests do
   require CalculusOfInductiveTypes
+  require PrettyPrint
   use ExUnit.Case
   doctest CalculusOfInductiveTypes
 
@@ -252,26 +251,144 @@ defmodule CoreTests do
     assert CalculusOfInductiveTypes.eq(t,ast)
   end
 
-  test "type of P -> Q -> P for all (P, Q) : *" do
-    {:ok, tokens, _} = :lexer.string('\\(C : *) -> \\(P : *) -> \\(Q : *) ->
-      let (th1 : (forall(P : *) -> forall(Q : *) -> P -> Q -> P)) =
-      \\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\\(hq : Q) -> hp in C')
-    {:ok, ast} = :parser.parse(tokens)
-
-    {:ok, _, _} = CalculusOfInductiveTypes.typeOf(ast)
-  end
-
-
-  test "modus ponens" do
-    {:ok, tokens, _} = :lexer.string('\\(A : *) -> \\(B : *)
-    ->
-      \\(Mp : A -> (A -> B) -> B) -> \\(h1 : A) -> \\(h2 : A -> B) -> h2 h1')
-
+  test "And elimination, Modus Ponens" do
+    {:ok, tokens, _} = :lexer.string('\\(result : *) ->
+      (  \\(th1 : forall(P : *) -> forall(Q : *) -> P -> Q -> P)
+      -> \\(th2 : forall(P : *) -> forall(Q : *) -> P -> (P -> Q) -> Q )
+      -> result)
+      (\\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp)
+      (\\(P : *) -> \\(Q : *) -> \\(h1 : P) -> \\(h2 : P -> Q) -> h2 h1)
+      ')
     {:ok, ast} = :parser.parse(tokens)
 
     {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
-
-    assert t == {:pi, :A, {:const, :star}, {:pi, :B, {:const, :star}, {:pi, :Mp, {:pi, :_, {:var, {:v, :A, 0}}, {:pi, :_, {:pi, :_, {:var, {:v, :A, 0}}, {:var, {:v, :B, 0}}}, {:var, {:v, :B, 0}}}}, {:pi, :h1, {:var, {:v, :A, 0}}, {:pi, :h2, {:pi, :_, {:var, {:v, :A, 0}}, {:var, {:v, :B, 0}}}, {:var, {:v, :B, 0}}}}}}}
+    assert t == {:pi, :result, {:const, :star}, {:const, :star}}
   end
 
+
+  test "what is a value constructor" do
+    {:ok, tokens, _} = :lexer.string('( (   \\(T : * -> * -> * -> *)
+
+         -- The value constructors
+     ->  \\(A : forall (a : *) -> forall (b : *) -> forall (c : *)           -> T a b c)
+     ->  \\(B : forall (a : *) -> forall (b : *) -> forall (c : *) -> a      -> T a b c)
+     ->  \\(C : forall (a : *) -> forall (b : *) -> forall (c : *) -> b -> c -> T a b c)
+
+         -- Pattern match on T
+     ->  \\(  matchT
+         :   forall (a : *) -> forall (b : *) -> forall (c : *)
+         ->  T a b c
+         ->  forall (r : *)
+         ->  r              -- `A` branch of the pattern match
+         ->  (a -> r)       -- `B` branch of the pattern match
+         ->  (b -> c -> r)  -- `C` branch of the pattern match
+         ->  r
+         )
+     -> \\(String : *) -> \\(h : String) -> \\(Bool : *) -> \\(t : Bool)
+     -> matchT String String Bool (C String String Bool h t) String
+        h
+        (\\(s : String) -> s)
+        (\\(a : String) -> \\(tf : Bool) -> a)
+     )
+
+     -- A value of type `T a b c` is just a preformed pattern match
+     (   \\(a : *) -> \\(b : *) -> \\(c : *)
+     ->  forall (r : *)
+     ->  r              -- A branch of the pattern match
+     ->  (a -> r)       -- B branch of the pattern match
+     ->  (b -> c -> r)  -- C branch of the pattern match
+     ->  r
+     )
+
+     -- Constructor for A
+     (   \\(a : *)
+     ->  \\(b : *)
+     ->  \\(c : *)
+     ->  \\(r : *)
+     ->  \\(A : r)
+     ->  \\(B : a -> r)
+     ->  \\(C : b -> c -> r)
+     ->  A
+     )
+
+     -- Constructor for B
+     (   \\(a : *)
+     ->  \\(b : *)
+     ->  \\(c : *)
+     ->  \\(va : a)
+     ->  \\(r : *)
+     ->  \\(A : r)
+     ->  \\(B : a -> r)
+     ->  \\(C : b -> c -> r)
+     ->  B va
+     )
+
+     -- Constructor for C
+     (   \\(a : *)
+     ->  \\(b : *)
+     ->  \\(c : *)
+     ->  \\(vb : b)
+     ->  \\(vc : c)
+     ->  \\(r : *)
+     ->  \\(A : r)
+     ->  \\(B : a -> r)
+     ->  \\(C : b -> c -> r)
+     ->  C vb vc
+     )
+
+     -- matchT is just the identity function
+     (   \\(a : *)
+     ->  \\(b : *)
+     ->  \\(c : *)
+     ->  \\(t : forall (r : *) -> r -> (a -> r) -> (b -> c -> r) -> r)
+     ->  t
+     ))')
+    {:ok, ast} = :parser.parse(tokens)
+    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
+    norm = CalculusOfInductiveTypes.normalize(ast)
+
+    assert t == {:pi, :String, {:const, :star}, {:pi, :h, {:var, {:v, :String, 0}}, {:pi, :Bool, {:const, :star}, {:pi, :t, {:var, {:v, :Bool, 0}}, {:var, {:v, :String, 0}}}}}}
+
+  end
+
+  test "zero dne 1" do
+    {:ok, tokens, _ } = :lexer.string('\\(truth : *) ->
+      ((\\(Nat : *) ->
+        \\(Succ : Nat -> Nat) ->
+        \\(Zero : Nat) ->
+    --  \\(foldNat  : Nat -> forall(r : *) -> (r -> r) -> r -> r)
+        \\(matchNat : Nat -> forall(r : *) -> r -> (r -> r) -> r)
+        -> truth)
+      (
+        -- Nat
+        forall(nat : *)
+        -> (nat -> nat) -- Succ
+        -> nat          -- Zero
+        -> nat
+      )
+      (
+        \\(pred : forall(nat : *) -> (nat -> nat) -> nat -> nat) -- forall nats, sucessor of a nat is a nat
+        -> \\(nat : *)
+        -> \\(Succ : nat -> nat)
+        -> \\(Zero : nat)
+        -> Succ (pred nat Succ Zero)
+      )
+      (
+        \\(nat : *)
+        -> \\(Succ : nat -> nat)
+        -> \\(Zero : nat)
+        -> Zero
+      )
+      (
+        \\(n : forall(nat : *) -> nat -> (nat -> nat) -> nat)
+        -> n
+      )
+      )')
+
+    {:ok, ast} = :parser.parse(tokens)
+
+    {{:TypeError, [:TypeMismatch, f, :AND, a]}, _, _} = CalculusOfInductiveTypes.typeOf(ast)
+
+    IO.puts(PrettyPrint.printExpr(f) <> "\n" <> PrettyPrint.printExpr(a))
+  end
 end
