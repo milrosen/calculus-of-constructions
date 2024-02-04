@@ -6,7 +6,6 @@ expr -> bexpr : '$1'.
 expr -> lambda '(' label ':' expr ')' arrow expr : {lam, get_token('$3'), '$5', '$8'}.
 expr -> pi     '(' label ':' expr ')' arrow expr : {pi, get_token('$3'), '$5', '$8'}.
 expr -> bexpr arrow expr : {pi, '_', '$1', '$3'}.
-expr -> let '(' label ':' expr ')' '=' expr 'in' expr : {app, {lam, get_token('$3'), '$5', '$10'}, '$8'}.
 
 vexpr -> label '@' number : {v, get_token('$1'), get_token('$3')}.
 vexpr -> label : {v, get_token('$1'), 0}.
