@@ -338,6 +338,7 @@ defmodule CoreTests do
 
     list = CalculusOfInductiveTypes.typeList([ast])
     assert {:error, :TypeError, error} = list
+    IO.puts(PrettyPrint.printError({:error, :TypeError, error}))
   end
 
   test "what is a value constructor" do
