@@ -7,7 +7,7 @@ defmodule PrettyPrint do
   def printExpr({:const, :star}), do: "*"
 
   def printExpr({:var, {:v, name, n}}) do
-    if n == 0, do: name, else: name <> "@" <> n
+    if n == 0, do: "#{name}", else: "#{name}@#{n}"
   end
 
   def printExpr({:lam, name, e1, e2}) do
@@ -32,13 +32,13 @@ defmodule PrettyPrint do
 
   defp printExprOrAtom(e) do
     if is_atom(e) do
-      ", #{e} "
+      " #{e}: "
     else
       printExpr(e)
     end
   end
 
   def printError({:error, errortype, error}) do
-    "#{errortype}#{Enum.map(error, fn e -> printExprOrAtom(e) end)}"
+    "#{errortype}: #{Enum.map(error, fn e -> printExprOrAtom(e) end)}"
   end
 end

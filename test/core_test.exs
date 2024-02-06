@@ -1,27 +1,27 @@
 defmodule CoreTests do
-  require CalculusOfInductiveTypes
+  require Core
   require PrettyPrint
   use ExUnit.Case
-  doctest CalculusOfInductiveTypes
+  doctest Core
 
   test "shift doesn't shift bound variables" do
     {:ok, tokens, _} = :lexer.string(~c"\\(x : *) -> x")
     {:ok, ast} = :parser.parse(tokens)
-    e = CalculusOfInductiveTypes.shift(1, :x, ast)
+    e = Core.shift(1, :x, ast)
     assert e == {:lam, :x, {:const, :star}, {:var, {:v, :x, 0}}}
   end
 
   test "shifts unbound, yet aliased var" do
     {:ok, tokens, _} = :lexer.string(~c"\\(x : *) -> x@1")
     {:ok, ast} = :parser.parse(tokens)
-    e = CalculusOfInductiveTypes.shift(1, :x, ast)
+    e = Core.shift(1, :x, ast)
     assert e == {:lam, :x, {:const, :star}, {:var, {:v, :x, 2}}}
   end
 
   test "shifty sequence" do
     e = {:var, {:v, :y, 0}}
-    e2 = CalculusOfInductiveTypes.shift(1, :y, e)
-    e3 = CalculusOfInductiveTypes.shift(1, :x, e2)
+    e2 = Core.shift(1, :y, e)
+    e3 = Core.shift(1, :x, e2)
     assert e3 == {:var, {:v, :y, 1}}
   end
 
@@ -29,7 +29,7 @@ defmodule CoreTests do
     {:ok, tokens, _} = :lexer.string(~c"f B")
     {:ok, ast} = :parser.parse(tokens)
 
-    e = CalculusOfInductiveTypes.subst(:B, 0, {:var, {:v, :y, 0}}, ast)
+    e = Core.subst(:B, 0, {:var, {:v, :y, 0}}, ast)
 
     assert e == {:app, {:var, {:v, :f, 0}}, {:var, {:v, :y, 0}}}
   end
@@ -38,7 +38,7 @@ defmodule CoreTests do
     {:ok, tokens, _} = :lexer.string(~c"\\(x : *) -> B")
     {:ok, ast} = :parser.parse(tokens)
 
-    e = CalculusOfInductiveTypes.subst(:B, 0, {:var, {:v, :y, 0}}, ast)
+    e = Core.subst(:B, 0, {:var, {:v, :y, 0}}, ast)
 
     assert e == {:lam, :x, {:const, :star}, {:var, {:v, :y, 0}}}
   end
@@ -47,7 +47,7 @@ defmodule CoreTests do
     {:ok, tokens, _} = :lexer.string(~c"\\(x : *) -> \\(y : *) -> \\(x : *) -> x@1")
     {:ok, ast} = :parser.parse(tokens)
 
-    e = CalculusOfInductiveTypes.subst(:x, 0, {:var, {:v, :y, 0}}, ast)
+    e = Core.subst(:x, 0, {:var, {:v, :y, 0}}, ast)
 
     assert e ==
              {:lam, :x, {:const, :star},
@@ -59,7 +59,7 @@ defmodule CoreTests do
     {:ok, ast} = :parser.parse(tokens)
 
     # sees two x's on its traversal downward, so incs twice
-    e = CalculusOfInductiveTypes.subst(:x, 0, {:var, {:v, :z, 0}}, ast)
+    e = Core.subst(:x, 0, {:var, {:v, :z, 0}}, ast)
 
     assert e ==
              {:lam, :x, {:const, :star},
@@ -70,7 +70,7 @@ defmodule CoreTests do
     {:ok, tokens, _} = :lexer.string(~c"\\(x : *) -> \\(y : *) -> \\(x : *) -> z")
     {:ok, ast} = :parser.parse(tokens)
 
-    e = CalculusOfInductiveTypes.subst(:z, 0, {:var, {:v, :y, 0}}, ast)
+    e = Core.subst(:z, 0, {:var, {:v, :y, 0}}, ast)
 
     assert e ==
              {:lam, :x, {:const, :star},
@@ -78,7 +78,7 @@ defmodule CoreTests do
   end
 
   test "free when v = e" do
-    assert CalculusOfInductiveTypes.free?({:v, :x, 0}, {:var, {:v, :x, 0}})
+    assert Core.free?({:v, :x, 0}, {:var, {:v, :x, 0}})
   end
 
   test "free works in very nested expr" do
@@ -88,7 +88,7 @@ defmodule CoreTests do
         \\(x : *) ->
           x@1 y a x y@1")
     {:ok, ast} = :parser.parse(tokens)
-    f? = &CalculusOfInductiveTypes.free?/2
+    f? = &Core.free?/2
 
     assert {false, false, true, true} = {
              f?.({:v, :z, 0}, ast),
@@ -105,7 +105,7 @@ defmodule CoreTests do
 
     {:ok, tokens, _} = :lexer.string(~c"\\(y : *) -> y")
     {:ok, whnf} = :parser.parse(tokens)
-    assert CalculusOfInductiveTypes.whnf(abnormal) == whnf
+    assert Core.whnf(abnormal) == whnf
   end
 
   test "whnf works" do
@@ -114,7 +114,7 @@ defmodule CoreTests do
 
     {:ok, tokens, _} = :lexer.string(~c"\\(x:B) -> x")
     {:ok, whnf} = :parser.parse(tokens)
-    assert CalculusOfInductiveTypes.whnf(input) == whnf
+    assert Core.whnf(input) == whnf
   end
 
   test "whnf respects index" do
@@ -130,8 +130,8 @@ defmodule CoreTests do
     {:ok, tokens, _} = :lexer.string(~c"\\(y:*) -> \\(x:A) -> z")
     {:ok, free_whnf} = :parser.parse(tokens)
 
-    assert CalculusOfInductiveTypes.whnf(bound) == bound_whnf
-    assert CalculusOfInductiveTypes.whnf(free) == free_whnf
+    assert Core.whnf(bound) == bound_whnf
+    assert Core.whnf(free) == free_whnf
   end
 
   test "normalize id function on lists" do
@@ -166,7 +166,7 @@ defmodule CoreTests do
 
     {:ok, normal} = :parser.parse(tokens)
 
-    assert CalculusOfInductiveTypes.normalize(abnormal) == normal
+    assert Core.normalize(abnormal) == normal
   end
 
   test "normalize edge case from reddit" do
@@ -181,12 +181,12 @@ defmodule CoreTests do
     {:ok, tokens, _} = :lexer.string(~c"\\(y : *) -> \\(z : *) -> y")
     {:ok, normal} = :parser.parse(tokens)
 
-    assert CalculusOfInductiveTypes.normalize(abnormal) == normal
+    assert Core.normalize(abnormal) == normal
   end
 
   test "insert var into context" do
     ctx = %{{:v, :x, 0} => {:const, :star}, {:v, :y, 0} => {:var, {:v, :x, 0}}}
-    ctx1 = CalculusOfInductiveTypes.insert(ctx, :x, {:var, {:v, :y, 0}})
+    ctx1 = Core.insert(ctx, :x, {:var, {:v, :y, 0}})
 
     assert ctx1 == %{
              {:v, :x, 1} => {:const, :star},
@@ -204,26 +204,26 @@ defmodule CoreTests do
     {:ok, tokens, _} = :lexer.string(~c"\\(a:*) -> \\(b:*) -> \\(c:*) -> c b a")
     {:ok, right} = :parser.parse(tokens)
 
-    assert CalculusOfInductiveTypes.eq(left, right)
+    assert Core.eq(left, right)
   end
 
   test "type unbound variable typeerror" do
     ast = {:var, {:v, :x, 0}}
 
-    assert CalculusOfInductiveTypes.typeOf(ast) ==
+    assert Core.typeOf(ast) ==
              {{:TypeError, [:UnboundVariable, {:var, {:v, :x, 0}}]}, {:var, {:v, :x, 0}}, %{}}
   end
 
   test "type * : box" do
     ast = {:const, :star}
-    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
+    {:ok, t, _} = Core.typeOf(ast)
     assert t == {:const, :box}
   end
 
   test "type of lambda :: pi" do
     {:ok, tokens, _} = :lexer.string(~c"\\(x : *) -> x")
     {:ok, ast} = :parser.parse(tokens)
-    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
+    {:ok, t, _} = Core.typeOf(ast)
 
     assert t == {:pi, :x, {:const, :star}, {:const, :star}}
   end
@@ -231,7 +231,7 @@ defmodule CoreTests do
   test "type check application of a function" do
     {:ok, tokens, _} = :lexer.string(~c"(\\(x : * -> *) -> x) (\\(y : *) -> y)")
     {:ok, ast} = :parser.parse(tokens)
-    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
+    {:ok, t, _} = Core.typeOf(ast)
 
     assert t == {:pi, :_, {:const, :star}, {:const, :star}}
   end
@@ -262,7 +262,7 @@ defmodule CoreTests do
     (\\(a : *) -> \\(va : a) -> va)
     ")
     {:ok, ast} = :parser.parse(tokens)
-    {:ok, t, ctx} = CalculusOfInductiveTypes.typeOf(ast)
+    {:ok, t, ctx} = Core.typeOf(ast)
 
     {:ok, tokens, _} =
       :lexer.string(
@@ -271,7 +271,7 @@ defmodule CoreTests do
 
     {:ok, ast} = :parser.parse(tokens)
 
-    assert CalculusOfInductiveTypes.eq(t, ast)
+    assert Core.eq(t, ast)
   end
 
   test "And elimination, Modus Ponens" do
@@ -284,7 +284,7 @@ defmodule CoreTests do
       ")
     {:ok, ast} = :parser.parse(tokens)
 
-    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
+    {:ok, t, _} = Core.typeOf(ast)
     assert t == {:pi, :result, {:const, :star}, {:const, :star}}
   end
 
@@ -298,7 +298,7 @@ defmodule CoreTests do
       ")
     {:ok, ast} = :parser.parse(tokens)
 
-    {:ok, _, ctx} = CalculusOfInductiveTypes.typeOf(ast)
+    {:ok, _, ctx} = Core.typeOf(ast)
 
     assert ctx == %{
              {:v, :th1, 0} =>
@@ -325,7 +325,7 @@ defmodule CoreTests do
     {:ok, ast1} = :parser.parse(tokens1)
     {:ok, ast2} = :parser.parse(tokens2)
 
-    list = CalculusOfInductiveTypes.typeList([ast1, ast2])
+    list = Core.typeList([ast1, ast2])
     assert {:ok, [{{:const, :star}, _}, {{:const, :star}, _}]} = list
   end
 
@@ -336,7 +336,7 @@ defmodule CoreTests do
 
     {:ok, ast} = :parser.parse(tokens)
 
-    list = CalculusOfInductiveTypes.typeList([ast])
+    list = Core.typeList([ast])
     assert {:error, :TypeError, error} = list
     IO.puts(PrettyPrint.printError({:error, :TypeError, error}))
   end
@@ -419,8 +419,8 @@ defmodule CoreTests do
      ->  t
      ))")
     {:ok, ast} = :parser.parse(tokens)
-    {:ok, t, _} = CalculusOfInductiveTypes.typeOf(ast)
-    norm = CalculusOfInductiveTypes.normalize(ast)
+    {:ok, t, _} = Core.typeOf(ast)
+    norm = Core.normalize(ast)
 
     assert t ==
              {:pi, :String, {:const, :star},
@@ -464,8 +464,20 @@ defmodule CoreTests do
 
     {:ok, ast} = :parser.parse(tokens)
 
-    {:ok, e, _} = CalculusOfInductiveTypes.typeOf(ast)
+    {:ok, e, _} = Core.typeOf(ast)
 
     IO.puts(PrettyPrint.printExpr(e))
+  end
+
+  test "errors" do
+    {:ok, tokens, _} = :lexer.string(~c"Just Text")
+    {:ok, ast1} = :parser.parse(tokens)
+    {:ok, tokens, _} = :lexer.string(~c"Like anything")
+    {:ok, ast2} = :parser.parse(tokens)
+
+    assert {:error, :TypeError, errorMsg} = Core.typeList([ast1, ast2])
+
+    assert PrettyPrint.printError({:error, :TypeError, errorMsg}) ==
+             "TypeError:  TypeMismatch: Just Text AND: Text"
   end
 end
