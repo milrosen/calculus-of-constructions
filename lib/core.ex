@@ -133,7 +133,8 @@ defmodule Core do
     free?(v, a) || if x == x1, do: free?({:v, x, n + 1}, b), else: free?(v, b)
   end
 
-  # weak-head-normal form. Basically, no more outside applications to make \x -> 1 + 2 is, but (\x -> 1) 2 isn't
+  # weak-head-normal form. Basically, no more outside applications to make.
+  # \x -> 1 + 2 is fine, since the pending application is inside of the function, but (\x -> 1) 2 isn't
   # more info here: https://stackoverflow.com/questions/6872898/what-is-weak-head-normal-form
   @spec whnf(expr) :: expr
   def whnf(e) when Kernel.elem(e, 0) != :app, do: e
@@ -174,7 +175,6 @@ defmodule Core do
 
   # eta reduction =>
   # \x -> f x (x not free in f) => f
-  # question to consider for later, does change the behavior or is it just an optimization
   def normalize({:lam, x, a, b}) do
     b1 = normalize(b)
 
@@ -186,6 +186,14 @@ defmodule Core do
     end
   end
 
+  # as variables are bound in the expression, we build a context of associations, then we check that the variables
+  # appear at the same point in the list, whenever that is
+  #  \x -> \y -> \z -> z y x
+  #  \a -> \b -> \c -> c b a
+
+  #                z,c  -> xl, xr
+  #   (x,a) (y,b) (z,c) -> ctx
+
   @type context :: %{{:v, atom, integer} => expr}
   @spec insert(context, atom, expr) :: context()
   def insert(ctx, x, e) do
@@ -195,14 +203,6 @@ defmodule Core do
     end)
     |> Map.put({:v, x, 0}, e)
   end
-
-  # as variables are bound in the expression, we build a context of associations, then we check that the variables
-  # appear at the same point in the list, whenever that is
-  #  \x -> \y -> \z -> z y x
-  #  \a -> \b -> \c -> c b a
-
-  #                z,c  -> xl, xr
-  #   (x,a) (y,b) (z,c) -> ctx
 
   @spec match(atom, integer, atom, integer, [{atom, atom}]) :: boolean()
   def match(xl, nl, xr, nr, []), do: xl == xr && nl == nr

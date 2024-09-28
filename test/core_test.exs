@@ -429,6 +429,19 @@ defmodule CoreTests do
                 {:pi, :t, {:var, {:v, :Bool, 0}}, {:var, {:v, :String, 0}}}}}}
   end
 
+  test "application order" do
+    {:ok, tokens, _} = :lexer.string(~c"\\(p : *) -> \\(q: *) ->
+                                      ((\\(x:*) -> \\(y:*) -> y) p q)")
+    {:ok, ast1} = :parser.parse(tokens)
+
+    {:ok, tokens, _} = :lexer.string(~c"\\(p : *) -> \\(q: *) ->
+                                      ((\\(x:*) -> (\\(y:*) -> y) q) p)")
+    {:ok, ast2} = :parser.parse(tokens)
+
+    assert Core.typeOf(ast1) == Core.typeOf(ast2)
+    assert Core.normalize(ast1) == Core.normalize(ast2)
+  end
+
   test "zero dne 1" do
     {:ok, tokens, _} = :lexer.string(~c"\\(truth : *) ->
       ((\\(Nat : *) ->
