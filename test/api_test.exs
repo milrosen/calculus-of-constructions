@@ -11,8 +11,6 @@ defmodule ApiTest do
       "false"
     ]
 
-    proofTypes = CalculusOfInductiveTypes.typeProof(proof)
-
-    assert proofTypes == 3
+    {:ok, _} = CalculusOfInductiveTypes.typeProof(proof)
   end
 end

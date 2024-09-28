@@ -276,7 +276,7 @@ defmodule Core do
   def typeList(exprl) do
     metactx = %{
       {:v, :result, 0} => {:const, :star},
-      {:v, false, 0} => {:const, :star},
+      {:v, :False, 0} => {:const, :star},
       {:v, :f, 0} =>
         {:pi, :P, {:const, :star}, {:pi, :_, {:var, {:v, :False, 0}}, {:var, {:v, :P, 0}}}}
     }
