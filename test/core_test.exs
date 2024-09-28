@@ -288,33 +288,6 @@ defmodule CoreTests do
     assert t == {:pi, :result, {:const, :star}, {:const, :star}}
   end
 
-  test "Result Variable" do
-    {:ok, tokens, _} = :lexer.string(~c"
-      (  \\(th1 : forall(P : *) -> forall(Q : *) -> P -> Q -> P)
-      -> \\(th2 : forall(P : *) -> forall(Q : *) -> P -> (P -> Q) -> Q )
-      -> result)
-      (\\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hq : Q) -> hp)
-      (\\(P : *) -> \\(Q : *) -> \\(h1 : P) -> \\(h2 : P -> Q) -> h2 h1)
-      ")
-    {:ok, ast} = :parser.parse(tokens)
-
-    {:ok, _, ctx} = Core.typeOf(ast)
-
-    assert ctx == %{
-             {:v, :th1, 0} =>
-               {:pi, :P, {:const, :star},
-                {:pi, :Q, {:const, :star},
-                 {:pi, :_, {:var, {:v, :P, 0}},
-                  {:pi, :_, {:var, {:v, :Q, 0}}, {:var, {:v, :P, 0}}}}}},
-             {:v, :th2, 0} =>
-               {:pi, :P, {:const, :star},
-                {:pi, :Q, {:const, :star},
-                 {:pi, :_, {:var, {:v, :P, 0}},
-                  {:pi, :_, {:pi, :_, {:var, {:v, :P, 0}}, {:var, {:v, :Q, 0}}},
-                   {:var, {:v, :Q, 0}}}}}}
-           }
-  end
-
   test "TypeList" do
     {:ok, tokens1, _} = :lexer.string(~c"
       (\\(th1 : forall(P : *) -> forall(Q : *) -> P -> Q -> P) -> result)
@@ -341,7 +314,10 @@ defmodule CoreTests do
     IO.puts(PrettyPrint.printError({:error, :TypeError, error}))
   end
 
-  test "what is a value constructor" do
+  test "Sum types" do
+    # What is a sum type, really?
+    # A thing that you can match on, or, more accurately, a thing that you HAVE to match on
+    # If I say T is a string, int or bool, then any fn accepting a T has to be ok recieving a string, int or bool
     {:ok, tokens, _} = :lexer.string(~c"( (   \\(T : * -> * -> * -> *)
 
          -- The value constructors

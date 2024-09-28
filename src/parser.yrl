@@ -4,6 +4,7 @@ Rootsymbol expr.
 
 expr -> 'let' '(' label ':' expr ')' '=' expr 'in' expr : {app, {lam, get_token('$3'), '$5', '$10'}, '$8'}.
 expr -> bexpr : '$1'.
+expr -> lambda label arrow expr : {lam, get_token('$2'), {const, star}, '$4'}.
 expr -> lambda '(' label ':' expr ')' arrow expr : {lam, get_token('$3'), '$5', '$8'}.
 expr -> pi     '(' label ':' expr ')' arrow expr : {pi, get_token('$3'), '$5', '$8'}.
 expr -> bexpr arrow expr : {pi, '_', '$1', '$3'}.

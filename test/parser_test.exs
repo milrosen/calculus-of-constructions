@@ -23,6 +23,12 @@ defmodule ParserTests do
     assert ast == {:pi, :a, {:var, {:v, :A, 0}}, {:var, {:v, :B, 0}}}
   end
 
+  test "implicit star type" do
+    {:ok, tokens, _} = :lexer.string(~c"\\x -> x")
+    {:ok, ast} = :parser.parse(tokens)
+    assert ast == {:lam, :x, {:const, :star}, {:var, {:v, :x, 0}}}
+  end
+
   test "unmatched parens" do
     {:ok, tokens, _} = :lexer.string(~c"\\(a : a) -> \\(x : a -> x \n (x)")
     {:error, errors} = :parser.parse(tokens)

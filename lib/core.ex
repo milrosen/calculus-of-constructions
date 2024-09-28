@@ -270,20 +270,29 @@ defmodule Core do
   end
 
   # typeChecks list of expressions, each previous expression provides context for the next one
+  # adds a custom type variable, proof, to keep track of the ongoing proof progress, and
+  # and the false type, which can never be instantiated, so must be added externally
   @spec typeList([expr]) :: {:ok, [{expr(), context()}]} | {:error, atom, any}
   def typeList(exprl) do
+    metactx = %{
+      {:v, :result, 0} => {:const, :star},
+      {:v, false, 0} => {:const, :star},
+      {:v, :f, 0} =>
+        {:pi, :P, {:const, :star}, {:pi, :_, {:var, {:v, :False, 0}}, {:var, {:v, :P, 0}}}}
+    }
+
     go = fn
       [], ctxl, tl, _ ->
         {:ok, List.zip([tl, Enum.reverse(ctxl)])}
 
       [expr | exspr], [], [], go ->
-        case typeWith(%{{:v, :result, 0} => {:const, :star}}, expr) do
+        case typeWith(metactx, expr) do
           {:ok, t, ctx} -> go.(exspr, [ctx], [t], go)
           {{:TypeError, error}, _, _} -> {:error, :TypeError, error}
         end
 
       [expr | exspr], [prevctx | xsctx], tl, go ->
-        case typeWith(prevctx, expr) do
+        case typeWith(Map.merge(prevctx, metactx), expr) do
           {:ok, t, ctx} -> go.(exspr, [ctx | [prevctx | xsctx]], [t | tl], go)
           {{:TypeError, error}, _, _} -> {:error, :TypeError, error}
         end
@@ -305,6 +314,7 @@ defmodule Core do
     end
   end
 
+  # return whatever context we find at the result variable
   def typeWith(
         ctx,
         {:var, {:v, :result, 0}}
