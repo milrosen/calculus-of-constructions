@@ -1,6 +1,6 @@
 defmodule Core do
   @type const :: :star | :box
-  @type error :: :TypeErrore
+  @type error :: :TypeError
 
   @spec axiom(const) :: {:ok, const} | {:error, :TypeError}
   def axiom(:star), do: {:ok, :box}
@@ -263,7 +263,7 @@ defmodule Core do
       :ok, :ok -> :ok
       {:TypeError, l}, :ok -> {:TypeError, l}
       :ok, {:TypeError, l} -> {:TypeError, l}
-      {:TypeError, l1}, {:TypeError, _} -> {:TypeError, l1}
+      {:TypeError, _}, {:TypeError, l1} -> {:TypeError, l1}
     end
 
     go.(s1, s2)
@@ -275,10 +275,10 @@ defmodule Core do
   @spec typeList([expr]) :: {:ok, [{expr(), context()}]} | {:error, atom, any}
   def typeList(exprl) do
     metactx = %{
-      {:v, :result, 0} => {:const, :star},
-      {:v, :False, 0} => {:const, :star},
-      {:v, :f, 0} =>
-        {:pi, :P, {:const, :star}, {:pi, :_, {:var, {:v, :False, 0}}, {:var, {:v, :P, 0}}}}
+      {:v, :result, 0} => {:const, :star}
+      # {:v, :False, 0} => {:const, :star},
+      # {:v, :f, 0} =>
+      # {:pi, :P, {:const, :star}, {:pi, :_, {:var, {:v, :False, 0}}, {:var, {:v, :P, 0}}}}
     }
 
     go = fn

@@ -262,7 +262,7 @@ defmodule CoreTests do
     (\\(a : *) -> \\(va : a) -> va)
     ")
     {:ok, ast} = :parser.parse(tokens)
-    {:ok, t, ctx} = Core.typeOf(ast)
+    {:ok, t, _ctx} = Core.typeOf(ast)
 
     {:ok, tokens, _} =
       :lexer.string(
@@ -396,7 +396,7 @@ defmodule CoreTests do
      ))")
     {:ok, ast} = :parser.parse(tokens)
     {:ok, t, _} = Core.typeOf(ast)
-    norm = Core.normalize(ast)
+    _norm = Core.normalize(ast)
 
     assert t ==
              {:pi, :String, {:const, :star},
@@ -469,4 +469,15 @@ defmodule CoreTests do
     assert PrettyPrint.printError({:error, :TypeError, errorMsg}) ==
              "TypeError:  TypeMismatch: Just Text AND: Text"
   end
+
+  test "errors_two" =
+         {:ok, _tokens, _} = :lexer.string(~c"
+    let (bot : *) = (forall(P : *) -> P) in
+    let (not : forall(P:*) -> *) = (\\(P : *) -> bot) in
+    let (ex : forall(P : *) -> forall(Q : *) -> (not P) -> P -> Q) =
+      \\(P : *) -> \\(Q : *) -> \\(hp : P) -> \\(hnp : not P) -> P in
+    let (exp : forall(b : *) -> (forall(P : *) -> P) -> b) = \\(b: *) -> \\(a : (forall(p : *) -> p)) -> a b in
+    result")
+
+  # {:ok, _ast} = {:ok, 3}
 end
