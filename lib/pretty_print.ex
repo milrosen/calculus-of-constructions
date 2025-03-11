@@ -27,7 +27,7 @@ defmodule PrettyPrint do
   end
 
   def printExpr({:app, e1, e2}) do
-    "#{printExpr(e1)} #{printExpr(e2)}"
+    "(#{printExpr(e1)} #{printExpr(e2)})"
   end
 
   defp printExprOrAtom(e) do

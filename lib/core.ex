@@ -1,4 +1,5 @@
 defmodule Core do
+  require IEx
   @type const :: :star | :box
   @type error :: :UntypedBoxError | :UnboundVariableError | :NotAFunction
 
@@ -161,6 +162,22 @@ defmodule Core do
   def normalize({:const, _} = c), do: c
   def normalize({:pi, x, a, b}), do: {:pi, x, normalize(a), normalize(b)}
 
+  def normalize({:app, {:app, {:app, {:app, {:var, {:v, :indNat, 0}}, target}, mot}, base}, step}) do
+    case normalize(target) do
+      {:app, {:var, {:v, :succ, 0}}, n} ->
+        normalize(
+          {:app, {:app, step, n},
+           {:app, {:app, {:app, {:app, {:var, {:v, :indNat, 0}}, n}, mot}, base}, step}}
+        )
+
+      {:var, {:v, :zero, 0}} ->
+        normalize(base)
+
+      t ->
+        {:app, {:app, {:app, {:app, {:var, {:v, :indNat, 0}}, t}, mot}, base}, step}
+    end
+  end
+
   def normalize({:app, f, a}) do
     case normalize(f) do
       {:lam, x, _, b} ->
@@ -168,8 +185,8 @@ defmodule Core do
         b1 = subst(x, 0, a1, b)
         normalize(shift(-1, x, b1))
 
-      f1 ->
-        {:app, f1, normalize(a)}
+      f ->
+        {:app, f, normalize(a)}
     end
   end
 
@@ -257,10 +274,25 @@ defmodule Core do
     go.(normalize(e1), normalize(e2), [], go)
   end
 
+  @spec typeOf(expr()) :: {error, [any]} | {:ok, expr}
   def typeOf(e),
     do:
       typeWith(
-        %{{:v, :Nat, 0} => {:const, :star}},
+        %{
+          {:v, :Nat, 0} => {:const, :star},
+          {:v, :succ, 0} => {:pi, :_, {:var, {:v, :Nat, 0}}, {:var, {:v, :Nat, 0}}},
+          {:v, :zero, 0} => {:var, {:v, :Nat, 0}},
+          {:v, :indNat, 0} =>
+            {:pi, :target, {:var, {:v, :Nat, 0}},
+             {:pi, :mot, {:pi, :_, {:var, {:v, :Nat, 0}}, {:const, :star}},
+              {:pi, :base, {:app, {:var, {:v, :mot, 0}}, {:var, {:v, :zero, 0}}},
+               {:pi, :step,
+                {:pi, :nm1, {:var, {:v, :Nat, 0}},
+                 {:pi, :_, {:app, {:var, {:v, :mot, 0}}, {:var, {:v, :nm1, 0}}},
+                  {:app, {:var, {:v, :mot, 0}},
+                   {:app, {:var, {:v, :succ, 0}}, {:var, {:v, :nm1, 0}}}}}},
+                {:app, {:var, {:v, :mot, 0}}, {:var, {:v, :target, 0}}}}}}}
+        },
         e
       )
 
@@ -270,11 +302,6 @@ defmodule Core do
         {:const, c}
       ) do
     with({:ok, s} <- axiom(c), do: {:ok, {:const, s}})
-
-    # case axiom(c) do
-    #   {:ok, s} -> {:ok, {:const, s}, %{}}
-    #   {:error, :TypeError} -> {{:TypeError, [:UntypedBox]}, {:const, c}, ctx}
-    # end
   end
 
   def typeWith(
@@ -334,7 +361,7 @@ defmodule Core do
       else
         nf_A = normalize(tA)
         nf_A1 = normalize(tA1)
-        {:TypeMismatch, [nf_A, :DNE, nf_A1]}
+        {:TypeMismatch, [nf_A, :DNE, nf_A1, ctx]}
       end
     end
   end

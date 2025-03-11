@@ -3,15 +3,6 @@ defmodule CalculusOfConstructions do
   Documentation for `CalculusOfConstructions`.
   """
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> CalculusOfConstructions.hello()
-      :world
-
-  """
   require(Core)
   require(Desugar)
   require(PrettyPrint)
@@ -19,10 +10,6 @@ defmodule CalculusOfConstructions do
   @type command :: :def | :check | :eval
   @type sentence(etype) :: {command, atom, etype}
   @type program(etype) :: [sentence(etype)]
-
-  def hello do
-    :world
-  end
 
   def check(prog) do
     with(
@@ -68,14 +55,17 @@ defmodule CalculusOfConstructions do
   defp handle_commands([{:eval, _, expr} | rst], ctx) do
     {:ok, subst} = Desugar.delta(ctx, expr)
 
-    case Core.typeOf(subst) do
-      {:ok, ty} ->
-        {:eval, Core.normalize(ty)}
+    [
+      case Core.typeOf(subst) do
+        {:ok, ty} ->
+          {:eval, Core.normalize(subst), Core.normalize(ty)}
 
-      {_, _} ->
-        {:eval,
-         "Could not eval term #{PrettyPrint.printExpr(subst)} since it failed to typecheck"}
-    end
+        {_, _} ->
+          {:eval,
+           "Could not eval term #{PrettyPrint.printExpr(subst)} since it failed to typecheck"}
+      end
+      | handle_commands(rst, ctx)
+    ]
   end
 
   defp desugar_program([]), do: []

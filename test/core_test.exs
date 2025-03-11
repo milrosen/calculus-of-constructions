@@ -193,12 +193,14 @@ defmodule CoreTests do
   test "type unbound variable typeerror" do
     ast = {:var, {:v, :x, 0}}
 
-    assert Core.typeOf(ast) ==
+    assert match?(
              {:UnboundVariableError,
               [
                 {:var, {:v, :x, 0}},
-                %{{:v, :Nat, 0} => {:const, :star}}
-              ]}
+                _
+              ]},
+             Core.typeOf(ast)
+           )
   end
 
   test "type * : box" do
@@ -257,12 +259,12 @@ defmodule CoreTests do
   end
 
   test "And" do
-    {:ok, [_, _ | {:eval, rst}]} = CalculusOfConstructions.check("
+    {:ok, [_, _, {:eval, _term, type}]} = CalculusOfConstructions.check("
     #def and := fun a : *, b : *. {c : *} (a -> b -> c) -> c
     #def K := fun a : *, b : *, x : a, y : b. x
     #eval fun a : *, b : *. fun x : and a b . x a (K a b)")
 
-    assert PrettyPrint.printExpr(rst) ==
+    assert PrettyPrint.printExpr(type) ==
              "Π(a : *) → Π(b : *) → Π(x : Π(c : *) → (a → b → c) → c) → a"
   end
 
@@ -366,5 +368,44 @@ defmodule CoreTests do
 
     assert Core.typeOf(ast1) == Core.typeOf(ast2)
     assert Core.normalize(ast1) == Core.normalize(ast2)
+  end
+
+  test "natural number induction type" do
+    ast1 = single_expr("fun target : Nat, mot : Nat -> *, base : (mot zero),
+        step : ({nm1 : Nat} (mot nm1) -> (mot (succ nm1))) . indNat target mot base step")
+
+    ast2 = single_expr("indNat")
+
+    assert Core.typeOf(ast1) == Core.typeOf(ast2)
+  end
+
+  test "normalize types" do
+    ast1 = single_expr("
+    fun a : Nat, b : Nat .
+      (fun x : Nat.x) a")
+
+    ast2 = single_expr("
+    fun a : Nat, b : Nat . a")
+
+    assert Core.typeOf(ast1) == Core.typeOf(ast2)
+  end
+
+  test "plus" do
+    {:ok, t1} = single_expr("fun a : Nat, b : Nat .
+        indNat a (fun x : Nat. Nat) b
+          (fun _ : Nat, pm1 : Nat. succ pm1)") |> Core.typeOf()
+
+    {:ok, t2} = single_expr("fun a : Nat, b : Nat. succ a") |> Core.typeOf()
+
+    assert Core.eq(t1, t2)
+
+    {:ok, [_, {:eval, four, _}]} =
+      CalculusOfConstructions.check("
+      #def (+) := fun a : Nat, b : Nat .
+        indNat a (fun x : Nat. Nat) b
+          (fun _ : Nat, pm1 : Nat . succ pm1)
+      #eval (+) (succ (succ zero)) (succ (succ zero))")
+
+    assert four == single_expr("succ (succ (succ (succ zero)))")
   end
 end
