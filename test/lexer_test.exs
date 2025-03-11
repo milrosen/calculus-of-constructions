@@ -135,4 +135,10 @@ defmodule LexerTests do
                {:label, 1, :c}
              ]
   end
+
+  test "digits" do
+    {:ok, tokens, _} = :lexer.string(~c"75")
+
+    assert tokens == [{:number, 1, 75}]
+  end
 end

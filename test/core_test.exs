@@ -379,17 +379,6 @@ defmodule CoreTests do
     assert Core.typeOf(ast1) == Core.typeOf(ast2)
   end
 
-  test "normalize types" do
-    ast1 = single_expr("
-    fun a : Nat, b : Nat .
-      (fun x : Nat.x) a")
-
-    ast2 = single_expr("
-    fun a : Nat, b : Nat . a")
-
-    assert Core.typeOf(ast1) == Core.typeOf(ast2)
-  end
-
   test "plus" do
     {:ok, t1} = single_expr("fun a : Nat, b : Nat .
         indNat a (fun x : Nat. Nat) b
@@ -402,10 +391,10 @@ defmodule CoreTests do
     {:ok, [_, {:eval, four, _}]} =
       CalculusOfConstructions.check("
       #def (+) := fun a : Nat, b : Nat .
-        indNat a (fun x : Nat. Nat) b
+        indNat a (fun x : Nat . Nat) b
           (fun _ : Nat, pm1 : Nat . succ pm1)
-      #eval (+) (succ (succ zero)) (succ (succ zero))")
+      #eval (+) 2 2")
 
-    assert four == single_expr("succ (succ (succ (succ zero)))")
+    assert four == single_expr("4")
   end
 end

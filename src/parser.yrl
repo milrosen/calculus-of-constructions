@@ -34,6 +34,7 @@ anno -> label                  : {get_token('$1'), hole}.
 aexpr -> vexpr : {var, '$1'}.
 aexpr -> star : {const, get_const_token('$1')}.
 aexpr -> box :  {const, get_const_token('$1')}.
+aexpr -> number : {const, {number, get_token('$1')}}.
 aexpr -> '(' expr ')' : '$2'.
 
 Erlang code.

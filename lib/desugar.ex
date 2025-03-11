@@ -6,6 +6,7 @@ defmodule Desugar do
   @type cexpr ::
           {:const, :star}
           | {:const, :box}
+          | {:const, {:number, integer()}}
           | {:var, {:v, atom, integer()}}
           | {:lam, [anno()], cexpr()}
           | {:pi, [anno()], cexpr()}
@@ -15,6 +16,7 @@ defmodule Desugar do
   @type lexpr ::
           {:const, :star}
           | {:const, :box}
+          | {:const, {:number, integer}}
           | {:var, {:v, atom, integer}}
           | {:lam, atom, lexpr, lexpr}
           | {:pi, atom, lexpr, lexpr}
@@ -41,6 +43,14 @@ defmodule Desugar do
 
   @type context :: %{atom => Core.expr()}
   @spec delta(context, lexpr()) :: {:ok, Core.expr()} | {:error, any}
+  def delta(_, {:const, {:number, 0}}), do: {:ok, {:var, {:v, :zero, 0}}}
+
+  def delta(ctx, {:const, {:number, n}}) do
+    with {:ok, n1} <- delta(ctx, {:const, {:number, n - 1}}) do
+      {:ok, {:app, {:var, {:v, :succ, 0}}, n1}}
+    end
+  end
+
   def delta(_, {:const, c}), do: {:ok, {:const, c}}
 
   def delta(ctx, {:var, {:v, name, _}} = v) do
