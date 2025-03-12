@@ -42,10 +42,10 @@ defmodule CalculusOfConstructions do
           {:check, ty}
 
         {:UnboundVariableError, [{:var, {:v, name, _}}, _]} ->
-          {:check, "Unbound Variable #{name} in #{PrettyPrint.printExpr(subst)} "}
+          {:error, "Unbound Variable #{name} in #{PrettyPrint.printExpr(subst)} "}
 
         {:TypeMismatch, [t1, :DNE, t2]} ->
-          {:check,
+          {:error,
            "Expected argument of form #{PrettyPrint.printExpr(t1)} but recieved #{PrettyPrint.printExpr(t2)}"}
       end
       | handle_commands(rst, ctx)
@@ -61,7 +61,7 @@ defmodule CalculusOfConstructions do
           {:eval, Core.normalize(subst), Core.normalize(ty)}
 
         {_, _} ->
-          {:eval,
+          {:error,
            "Could not eval term #{PrettyPrint.printExpr(subst)} since it failed to typecheck"}
       end
       | handle_commands(rst, ctx)

@@ -12,7 +12,7 @@ defmodule CalculusOfConstructionsTest do
     assert prog ==
              {:ok,
               [
-                {:check, "Unbound Variable id in (id λ(x : *) → x) "},
+                {:error, "Unbound Variable id in (id λ(x : *) → x) "},
                 {:def, :id,
                  {:lam, :x, {:pi, :_, {:const, :star}, {:const, :star}}, {:var, {:v, :x, 0}}}},
                 {:check, {:pi, :_, {:const, :star}, {:const, :star}}}
