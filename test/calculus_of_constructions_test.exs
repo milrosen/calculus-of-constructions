@@ -18,4 +18,16 @@ defmodule CalculusOfConstructionsTest do
                 {:check, {:pi, :_, {:const, :star}, {:const, :star}}}
               ]}
   end
+
+  test "lexer error" do
+    prog = CalculusOfConstructions.check("??")
+
+    assert match?({:error, _}, prog)
+  end
+
+  test "parser error" do
+    prog = CalculusOfConstructions.check("#def id : {A : *} fun a : A . a")
+
+    assert match?({:error, _}, prog)
+  end
 end

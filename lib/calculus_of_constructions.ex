@@ -18,11 +18,11 @@ defmodule CalculusOfConstructions do
     ) do
       {:ok, program |> desugar_program |> handle_commands(Map.new())}
     else
-      {:TokenizerError, errmsg} ->
-        {:error, "Tokenizer Error: #{errmsg}"}
+      {:TokenizerError, {line, :lexer, {:illegal, char}}} ->
+        {:error, "Tokenizer Error on line #{line}: illegal char #{char}"}
 
-      {:ParseError, errmsg} ->
-        {:error, "Parse Error: #{errmsg}"}
+      {:ParseError, {line, :parser, errmsg}} ->
+        {:error, "Parse Error on line #{line}: #{Enum.join(errmsg, " ")}"}
     end
   end
 
