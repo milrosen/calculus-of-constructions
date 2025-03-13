@@ -39,4 +39,16 @@ defmodule CalculusOfConstructionsTest do
 
     assert match?({:ok, [_, _, {:check, _}]}, prog)
   end
+
+  test "parenthesis" do
+    {:ok, [{:eval, ast1, _}, {:def, :"(+)", ast2}]} = CalculusOfConstructions.check("
+    #eval succ (succ (succ (succ zero)))
+    #def (+) := fun a : Nat, b : Nat .
+      indNat a (fun _ : Nat . Nat) b
+      (fun _ : Nat, pm1 : Nat . succ pm1)")
+
+    assert {PrettyPrint.printExpr(ast1), PrettyPrint.printExpr(ast2)} ==
+             {"(succ (succ (succ (succ zero))))",
+              "λ(a : Nat) → λ(b : Nat) → indNat a (λ(_ : Nat) → Nat) b (λ(_ : Nat) → λ(pm1 : Nat) → (succ pm1))"}
+  end
 end

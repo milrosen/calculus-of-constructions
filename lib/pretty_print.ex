@@ -23,7 +23,23 @@ defmodule PrettyPrint do
   end
 
   def printExpr({:pi, name, e1, e2}) do
-    "Π(#{name} : #{printExpr(e1)}) → #{printExpr(e2)}"
+    if not Core.free?({:v, name, 0}, e2),
+      do: "(#{printExpr(e1)}) → #{printExpr(e2)}",
+      else: "Π(#{name} : #{printExpr(e1)}) → #{printExpr(e2)}"
+  end
+
+  def printExpr({:app, {:app, e1, e2}, e3}) do
+    p2 =
+      if match?({:var, _}, e2),
+        do: PrettyPrint.printExpr(e2),
+        else: "(#{PrettyPrint.printExpr(e2)})"
+
+    p3 =
+      if match?({:var, _}, e3),
+        do: PrettyPrint.printExpr(e3),
+        else: "(#{PrettyPrint.printExpr(e3)})"
+
+    "#{printExpr(e1)} #{p2} #{p3}"
   end
 
   def printExpr({:app, e1, e2}) do

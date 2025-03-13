@@ -261,11 +261,11 @@ defmodule CoreTests do
   test "And" do
     {:ok, [_, _, {:eval, _term, type}]} = CalculusOfConstructions.check("
     #def and := fun a : *, b : *. {c : *} (a -> b -> c) -> c
-    #def K := fun a : *, b : *, x : a, y : b. x
-    #eval fun a : *, b : *. fun x : and a b . x a (K a b)")
+    #def K   := fun a : *, b : *, x : a, y : b. x
+    #eval fun a : *, b : *. fun x : (and a b) . x a (K a b)")
 
     assert PrettyPrint.printExpr(type) ==
-             "Π(a : *) → Π(b : *) → Π(x : Π(c : *) → (a → b → c) → c) → a"
+             "Π(a : *) → Π(b : *) → (Π(c : *) → (a → b → c) → c) → a"
   end
 
   test "Sum types" do
