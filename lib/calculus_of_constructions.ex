@@ -7,8 +7,8 @@ defmodule CalculusOfConstructions do
   require(Desugar)
   require(PrettyPrint)
 
-  @type command :: :def | :check | :eval
-  @type sentence(etype) :: {command, atom, etype}
+  @type command :: :def | :type | :eval | :with | :check
+  @type sentence(etype) :: {command, atom, etype} | {:with, [{atom, etype}]}
   @type program(etype) :: [sentence(etype)]
 
   def check(prog) do
@@ -16,7 +16,7 @@ defmodule CalculusOfConstructions do
       {:ok, tokens} <- prog |> to_charlist |> tok,
       {:ok, program} <- parse(tokens)
     ) do
-      {:ok, program |> desugar_program |> handle_commands(Map.new())}
+      {:ok, program |> desugar_program |> handle_commands(Map.new(), Map.new())}
     else
       {:TokenizerError, {line, :lexer, {:illegal, char}}} ->
         {:error, "Tokenizer Error on line #{line}: illegal char #{char}"}
@@ -26,42 +26,84 @@ defmodule CalculusOfConstructions do
     end
   end
 
-  @spec handle_commands(program(Core.expr()), Desugar.context()) :: [{command(), any}]
-  defp handle_commands([], _), do: []
+  @spec handle_commands(program(Core.expr()), Desugar.context(), Core.context()) :: [
+          {command(), any}
+        ]
+  defp handle_commands([], _, _), do: []
 
-  defp handle_commands([{:def, name, expr} | rst], ctx) do
-    {:ok, subst} = Desugar.delta(ctx, expr)
-    [{:def, name, expr} | handle_commands(rst, Map.put(ctx, name, subst))]
+  defp handle_commands([{:def, name, expr} | rst], terms_ctx, types_ctx) do
+    {:ok, subst} = Desugar.delta(terms_ctx, expr)
+    [{:def, name, expr} | handle_commands(rst, Map.put(terms_ctx, name, subst), types_ctx)]
   end
 
-  defp handle_commands([{:check, _, expr} | rst], ctx) do
-    {:ok, subst} = Desugar.delta(ctx, expr)
+  defp handle_commands([{:with, annos} | rst], terms_ctx, types_ctx) do
+    types_ctx =
+      Map.merge(
+        Map.new(annos, fn {name, type} ->
+          {{:v, name, 0},
+           with({:ok, term} <- type |> (&Desugar.delta(terms_ctx, &1)).(), do: term)}
+        end),
+        types_ctx
+      )
+
+    [{:with, types_ctx} | handle_commands(rst, terms_ctx, types_ctx)]
+  end
+
+  defp handle_commands([{:check, name, type, term} | rst], terms_ctx, types_ctx) do
+    {:ok, term} = Desugar.delta(terms_ctx, term)
+    {:ok, type} = Desugar.delta(terms_ctx, type)
 
     [
-      case Core.typeOf(subst) do
+      case Core.typeOf(term, types_ctx) do
         {:ok, ty} ->
-          {:check, ty}
+          if Core.eq(ty, type),
+            do: {:check, name, type, term},
+            else:
+              {:error,
+               "#{PrettyPrint.printExpr(ty)} is not equal to #{PrettyPrint.printExpr(type)}"}
 
-        {:UnboundVariableError, [{:var, {:v, name, _}}, _]} ->
-          {:error, "Unbound Variable #{name} in #{PrettyPrint.printExpr(subst)} "}
-
-        {:TypeMismatch, [t1, :DNE, t2, _]} ->
-          {:error,
-           "Expected argument of form #{PrettyPrint.printExpr(t1)} but recieved #{PrettyPrint.printExpr(t2)}"}
-
-        {:NotAFunction, [term, type]} ->
-          {:error,
-           "#{PrettyPrint.printExpr(term)} : #{PrettyPrint.printExpr(type)} is not a function"}
+        err ->
+          handle_error(err)
       end
-      | handle_commands(rst, ctx)
+      | handle_commands(rst, Map.put(terms_ctx, name, term), types_ctx)
     ]
   end
 
-  defp handle_commands([{:eval, _, expr} | rst], ctx) do
-    {:ok, subst} = Desugar.delta(ctx, expr)
+  defp handle_error(error) do
+    case error do
+      {:UnboundVariableError, [{:var, {:v, name, _}}, _]} ->
+        {:error, "Unbound Variable #{name}"}
+
+      {:TypeMismatch, [t1, :DNE, t2, _]} ->
+        {:error,
+         "Expected argument of form #{PrettyPrint.printExpr(t1)} but recieved #{PrettyPrint.printExpr(t2)}"}
+
+      {:NotAFunction, [term, type]} ->
+        {:error,
+         "#{PrettyPrint.printExpr(term)} : #{PrettyPrint.printExpr(type)} is not a function"}
+    end
+  end
+
+  defp handle_commands([{:type, _, expr} | rst], terms_ctx, types_ctx) do
+    {:ok, subst} = Desugar.delta(terms_ctx, expr)
 
     [
-      case Core.typeOf(subst) do
+      case Core.typeOf(subst, types_ctx) do
+        {:ok, ty} ->
+          {:type, ty}
+
+        err ->
+          handle_error(err)
+      end
+      | handle_commands(rst, terms_ctx, types_ctx)
+    ]
+  end
+
+  defp handle_commands([{:eval, _, expr} | rst], terms_ctx, types_ctx) do
+    {:ok, subst} = Desugar.delta(terms_ctx, expr)
+
+    [
+      case Core.typeOf(subst, types_ctx) do
         {:ok, ty} ->
           {:eval, Core.normalize(subst), Core.normalize(ty)}
 
@@ -69,11 +111,35 @@ defmodule CalculusOfConstructions do
           {:error,
            "Could not eval term #{PrettyPrint.printExpr(subst)} since it failed to typecheck"}
       end
-      | handle_commands(rst, ctx)
+      | handle_commands(rst, terms_ctx, types_ctx)
     ]
   end
 
   defp desugar_program([]), do: []
+
+  defp desugar_program([{:with, annos} | rst]) do
+    desugared =
+      Enum.map(annos, fn {name, sterm} ->
+        case desugar(sterm) do
+          {:ok, term} -> {name, term}
+          {:LetError, _} -> {name, {:const, :star}}
+        end
+      end)
+
+    [{:with, desugared} | desugar_program(rst)]
+  end
+
+  defp desugar_program([{:check, name, type, term} | rst]) do
+    [
+      with(
+        {:ok, type} <- desugar(type),
+        {:ok, term} <- desugar(term)
+      ) do
+        {:check, name, type, term}
+      end
+      | desugar_program(rst)
+    ]
+  end
 
   defp desugar_program([{command, args, ast} | rst]) do
     [

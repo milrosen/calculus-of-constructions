@@ -121,12 +121,12 @@ defmodule LexerTests do
   end
 
   test "program as list of commands" do
-    {:ok, tokens, _} = :lexer.string(~c"#check let a = b in c")
+    {:ok, tokens, _} = :lexer.string(~c"#type let a = b in c")
 
     assert tokens ==
              [
                {:"#", 1},
-               {:label, 1, :check},
+               {:type, 1},
                {:let, 1},
                {:label, 1, :a},
                {:=, 1},

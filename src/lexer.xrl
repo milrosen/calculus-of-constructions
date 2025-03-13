@@ -23,6 +23,11 @@ let          : {token, {'let', TokenLine}}.
 :=           : {token, {':=',  TokenLine}}.
 in           : {token, {'in',  TokenLine}}.
 fun          : {token, {'fun', TokenLine}}.
+with         : {token, {'with', TokenLine}}.
+def          : {token, {'def', TokenLine}}.
+eval         : {token, {'eval', TokenLine}}.
+type         : {token, {'type', TokenLine}}.
+check        : {token, {'check', TokenLine}}.
 \,           : {token, {'comma', TokenLine}}.
 \.           : {token, {'dot', TokenLine}}.
 \{           : {token, {'{', TokenLine}}.

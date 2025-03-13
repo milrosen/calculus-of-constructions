@@ -278,8 +278,12 @@ defmodule Core do
 
   @spec typeOf(expr()) :: {error, [any]} | {:ok, expr}
   def typeOf(e),
-    do:
-      typeWith(
+    do: typeOf(e, %{})
+
+  def typeOf(e, ctx) do
+    typeWith(
+      Map.merge(
+        ctx,
         %{
           {:v, :Nat, 0} => {:const, :star},
           {:v, :succ, 0} => {:pi, :_, {:var, {:v, :Nat, 0}}, {:var, {:v, :Nat, 0}}},
@@ -294,9 +298,11 @@ defmodule Core do
                   {:app, {:var, {:v, :mot, 0}},
                    {:app, {:var, {:v, :succ, 0}}, {:var, {:v, :nm1, 0}}}}}},
                 {:app, {:var, {:v, :mot, 0}}, {:var, {:v, :target, 0}}}}}}}
-        },
-        e
-      )
+        }
+      ),
+      e
+    )
+  end
 
   @spec typeWith(context, expr) :: {error, [any]} | {:ok, expr}
   def typeWith(

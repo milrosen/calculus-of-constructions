@@ -100,13 +100,37 @@ defmodule ParserTests do
   end
 
   test "multiple commands" do
-    {:ok, tokens, _} = :lexer.string(~c"#def id := fun x : * . x #check id (fun a : * . a)")
+    {:ok, tokens, _} = :lexer.string(~c"#def id := fun x : * . x #type id (fun a : * . a)")
     {:ok, ast} = :parser.parse(tokens)
 
     assert ast == [
              {:def, :id, {:lam, [x: {:const, :star}], {:var, {:v, :x, 0}}}},
-             {:check, :_,
+             {:type, :_,
               {:app, {:var, {:v, :id, 0}}, {:lam, [a: {:const, :star}], {:var, {:v, :a, 0}}}}}
            ]
+  end
+
+  test "parse with command" do
+    {:ok, tokens, _} = :lexer.string(~c"#with A : *, B : *, C : * #type C")
+    {:ok, ast} = :parser.parse(tokens)
+
+    assert ast == [
+             {:with,
+              [
+                A: {:const, :star},
+                B: {:const, :star},
+                C: {:const, :star}
+              ]},
+             {:type, :_, {:var, {:v, :C, 0}}}
+           ]
+  end
+
+  test "parse check command" do
+    {:ok, tokens, _} =
+      :lexer.string(~c"#check AND : * -> * -> * := fun A : *, B : * . {C : *} (A -> B -> C) -> C")
+
+    {:ok, [ast]} = :parser.parse(tokens)
+
+    assert match?({:check, :AND, _, _}, ast)
   end
 end

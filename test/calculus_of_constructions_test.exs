@@ -4,19 +4,32 @@ defmodule CalculusOfConstructionsTest do
 
   test "check program" do
     prog = CalculusOfConstructions.check("
-    #check id (fun x : * . x)
+    #type id (fun x : * . x)
     #def id := fun x : * -> * . x
-    #check id (fun x : * . x)
+    #type id (fun x : * . x)
     ")
 
     assert prog ==
              {:ok,
               [
-                {:error, "Unbound Variable id in (id λ(x : *) → x) "},
+                {:error, "Unbound Variable id"},
                 {:def, :id,
                  {:lam, :x, {:pi, :_, {:const, :star}, {:const, :star}}, {:var, {:v, :x, 0}}}},
-                {:check, {:pi, :_, {:const, :star}, {:const, :star}}}
+                {:type, {:pi, :_, {:const, :star}, {:const, :star}}}
               ]}
+  end
+
+  test "check program with" do
+    {:ok, [{:with, _}, {:check, :f, claim, body}]} = CalculusOfConstructions.check("
+    #with A : *, B : *
+    #check f : A -> B -> B := fun a : A, b : B . b
+    ")
+
+    assert claim ==
+             {:pi, :_, {:var, {:v, :A, 0}}, {:pi, :_, {:var, {:v, :B, 0}}, {:var, {:v, :B, 0}}}}
+
+    assert body ==
+             {:lam, :a, {:var, {:v, :A, 0}}, {:lam, :b, {:var, {:v, :B, 0}}, {:var, {:v, :b, 0}}}}
   end
 
   test "lexer error" do
@@ -35,9 +48,9 @@ defmodule CalculusOfConstructionsTest do
     prog = CalculusOfConstructions.check("
     #def id := fun x : Nat . x
     #def idid := fun x : Nat . id x
-    #check idid")
+    #type idid")
 
-    assert match?({:ok, [_, _, {:check, _}]}, prog)
+    assert match?({:ok, [_, _, {:type, _}]}, prog)
   end
 
   test "parenthesis" do

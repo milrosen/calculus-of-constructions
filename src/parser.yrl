@@ -1,12 +1,16 @@
 Nonterminals expr aexpr bexpr vexpr anno annos program sentence.
-Terminals '#' '(' ')' '{' '}' lambda pi '@' ':' arrow star box label number fun dot comma forall 'let' '=' ':=' 'in'.
+Terminals '#' '(' ')' '{' '}' lambda pi '@' ':' arrow star box label number fun dot comma forall 'let' '=' ':=' 'in'
+def with eval type check.
 Rootsymbol program.
 
 program -> sentence : ['$1'].
 program -> sentence program : ['$1' | '$2'].
 
-sentence -> '#' label label ':=' expr : {get_token('$2'), get_token('$3'), '$5'}.
-sentence -> '#' label expr : {get_token('$2'), '_', '$3'}.
+sentence -> '#' with annos : {get_const_token('$2'), '$3'}.
+sentence -> '#' def label ':=' expr : {get_const_token('$2'), get_token('$3'), '$5'}.
+sentence -> '#' eval expr : {get_const_token('$2'), '_', '$3'}.
+sentence -> '#' type expr : {get_const_token('$2'), '_', '$3'}.
+sentence -> '#' check label ':' expr ':=' expr : {get_const_token('$2'), get_token('$3'), '$5', '$7'}.
 sentence -> expr : '$1'.
 
 expr -> 'let' label ':' expr '=' expr 'in' expr : {'let', get_token('$2'), '$4', '$6', '$8'}.
