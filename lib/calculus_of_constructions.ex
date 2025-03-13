@@ -13,7 +13,7 @@ defmodule CalculusOfConstructions do
 
   def check(prog) do
     with(
-      {:ok, tokens} <- tok(prog |> to_charlist),
+      {:ok, tokens} <- prog |> to_charlist |> tok,
       {:ok, program} <- parse(tokens)
     ) do
       {:ok, program |> desugar_program |> handle_commands(Map.new())}
@@ -30,7 +30,8 @@ defmodule CalculusOfConstructions do
   defp handle_commands([], _), do: []
 
   defp handle_commands([{:def, name, expr} | rst], ctx) do
-    [{:def, name, expr} | handle_commands(rst, Map.put(ctx, name, expr))]
+    {:ok, subst} = Desugar.delta(ctx, expr)
+    [{:def, name, ctx, expr} | handle_commands(rst, Map.put(ctx, name, subst))]
   end
 
   defp handle_commands([{:check, _, expr} | rst], ctx) do
@@ -44,9 +45,13 @@ defmodule CalculusOfConstructions do
         {:UnboundVariableError, [{:var, {:v, name, _}}, _]} ->
           {:error, "Unbound Variable #{name} in #{PrettyPrint.printExpr(subst)} "}
 
-        {:TypeMismatch, [t1, :DNE, t2]} ->
+        {:TypeMismatch, [t1, :DNE, t2, _]} ->
           {:error,
            "Expected argument of form #{PrettyPrint.printExpr(t1)} but recieved #{PrettyPrint.printExpr(t2)}"}
+
+        {:NotAFunction, [term, type]} ->
+          {:error,
+           "#{PrettyPrint.printExpr(term)} : #{PrettyPrint.printExpr(type)} is not a function"}
       end
       | handle_commands(rst, ctx)
     ]

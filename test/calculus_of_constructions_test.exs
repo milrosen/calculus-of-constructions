@@ -30,4 +30,13 @@ defmodule CalculusOfConstructionsTest do
 
     assert match?({:error, _}, prog)
   end
+
+  test "nested definitions" do
+    prog = CalculusOfConstructions.check("
+    #def id := fun x : Nat . x
+    #def idid := fun x : Nat . id x
+    #check idid")
+
+    assert match?({:ok, [_, _, {:check, _}]}, prog)
+  end
 end

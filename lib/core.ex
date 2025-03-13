@@ -7,19 +7,21 @@ defmodule Core do
   def axiom(:star), do: {:ok, :box}
   def axiom(:box), do: {:UntypedBoxError, nil}
 
-  @spec rule(const, const) :: const
+  @spec rule(const, const) :: {:ok, const} | {:InvalidRule, {const, const}}
 
   # * ⤳ *, or terms can depend on terms. This rule is equivalent to the simply typed lambda calculus
-  def rule(:star, :star), do: :star
+  def rule(:star, :star), do: {:ok, :star}
 
   # □ ⤳ *, or terms can depend on types. This is eqivalent to the F2, where types and terms are fundamentally different
-  def rule(:box, :star), do: :star
+  def rule(:box, :star), do: {:ok, :star}
 
   # □ ⤳ □, or types can depend on types. This enables Meta types, like Tree<T> and so on
-  def rule(:box, :box), do: :box
+  def rule(:box, :box), do: {:ok, :box}
 
   # * ⤳ □, or types can depend on terms. This is sometimes called "dependent typing" and makes this the CoC
-  def rule(:star, :box), do: :box
+  def rule(:star, :box), do: {:ok, :box}
+
+  def rule(s1, s2), do: {:InvalidRule, {s1, s2}}
 
   @type expr ::
           {:const, const}
@@ -335,9 +337,10 @@ defmodule Core do
     with(
       {:ok, {:const, s1}} <- typeWith(ctx, whnf(tA)),
       ctx1 = insert(ctx, x, tA),
-      {:ok, {:const, s2}} <- typeWith(ctx1, whnf(tB))
+      {:ok, {:const, s2}} <- typeWith(ctx1, whnf(tB)),
+      {:ok, s3} <- rule(s1, s2)
     ) do
-      {:ok, {:const, rule(s1, s2)}}
+      {:ok, {:const, s3}}
     end
   end
 
@@ -350,7 +353,7 @@ defmodule Core do
       {:ok, x, tA, tB} <-
         case whnf(e1) do
           {:pi, x, tA, tB} -> {:ok, x, tA, tB}
-          _ -> {:NotAFunction, [f]}
+          _ -> {:NotAFunction, [f, e1]}
         end,
       {:ok, tA1} <- typeWith(ctx, a)
     ) do
