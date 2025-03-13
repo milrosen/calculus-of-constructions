@@ -31,7 +31,7 @@ defmodule CalculusOfConstructions do
 
   defp handle_commands([{:def, name, expr} | rst], ctx) do
     {:ok, subst} = Desugar.delta(ctx, expr)
-    [{:def, name, ctx, expr} | handle_commands(rst, Map.put(ctx, name, subst))]
+    [{:def, name, expr} | handle_commands(rst, Map.put(ctx, name, subst))]
   end
 
   defp handle_commands([{:check, _, expr} | rst], ctx) do
