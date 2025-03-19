@@ -4,7 +4,7 @@ DIGIT = [0-9]+
 WHITESPACE = [\s\n\t\r]
 FST = [A-Za-z\_]
 LABELCHAR = [A-Za-z0-9\_]
-OPCHAR = [\!\$\%\&\*\+\/\<\=\>\?\@\\\^\|\-\~]
+OPCHAR = [\!\$\%\&\*\+\/\<\=\>\?\@\\\^\-\~]
 
 Rules.
 
@@ -26,13 +26,15 @@ fun          : {token, {'fun', TokenLine}}.
 with         : {token, {'with', TokenLine}}.
 def          : {token, {'def', TokenLine}}.
 eval         : {token, {'eval', TokenLine}}.
-type         : {token, {'type', TokenLine}}.
+typeof       : {token, {'typeof', TokenLine}}.
 check        : {token, {'check', TokenLine}}.
+system       : {token, {'system', TokenLine}}.
 \,           : {token, {'comma', TokenLine}}.
 \.           : {token, {'dot', TokenLine}}.
 \{           : {token, {'{', TokenLine}}.
 \}           : {token, {'}', TokenLine}}.
 \#           : {token, {'#', TokenLine}}.
+\|           : {token, {'|', TokenLine}}.
 
 
 {FST}{LABELCHAR}*|\(\s?{OPCHAR}+\s?\) : {token, {label,  TokenLine, list_to_atom(TokenChars)}}.

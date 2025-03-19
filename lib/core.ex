@@ -3,25 +3,25 @@ defmodule Core do
   @type const :: :star | :box
   @type error :: :UntypedBoxError | :UnboundVariableError | :NotAFunction
 
-  @spec axiom(const) :: {:ok, const} | {error, String.t()}
-  def axiom(:star), do: {:ok, :box}
-  def axiom(:box), do: {:UntypedBoxError, nil}
+  # @spec axiom(const) :: {:ok, const} | {error, String.t()}
+  # def axiom(:star), do: {:ok, :box}
+  # def axiom(:box), do: {:UntypedBoxError, nil}
 
-  @spec rule(const, const) :: {:ok, const} | {:InvalidRule, {const, const}}
+  # @spec rule(const, const) :: {:ok, const} | {:InvalidRule, {const, const}}
 
   # * ⤳ *, or terms can depend on terms. This rule is equivalent to the simply typed lambda calculus
-  def rule(:star, :star), do: {:ok, :star}
+  # def rule(:star, :star), do: {:ok, :star}
 
   # □ ⤳ *, or terms can depend on types. This is eqivalent to the F2, where types and terms are fundamentally different
-  def rule(:box, :star), do: {:ok, :star}
+  # def rule(:box, :star), do: {:ok, :star}
 
   # □ ⤳ □, or types can depend on types. This enables Meta types, like Tree<T> and so on
-  def rule(:box, :box), do: {:ok, :box}
+  # def rule(:box, :box), do: {:ok, :box}
 
   # * ⤳ □, or types can depend on terms. This is sometimes called "dependent typing" and makes this the CoC
-  def rule(:star, :box), do: {:ok, :box}
+  # def rule(:star, :box), do: {:ok, :box}
 
-  def rule(s1, s2), do: {:InvalidRule, {s1, s2}}
+  # def rule(s1, s2), do: {:InvalidRule, {s1, s2}}
 
   @type expr ::
           {:const, const}
@@ -280,41 +280,65 @@ defmodule Core do
   def typeOf(e),
     do: typeOf(e, %{})
 
-  def typeOf(e, ctx) do
+  @coc_rules %{
+    {:star, :star} => :star,
+    {:star, :box} => :box,
+    {:box, :star} => :star,
+    {:box, :box} => :box
+  }
+  @coc_axioms %{:star => :box}
+
+  @ind_nat_context %{
+    {:v, :Nat, 0} => {:const, :star},
+    {:v, :succ, 0} => {:pi, :_, {:var, {:v, :Nat, 0}}, {:var, {:v, :Nat, 0}}},
+    {:v, :zero, 0} => {:var, {:v, :Nat, 0}},
+    {:v, :indNat, 0} =>
+      {:pi, :target, {:var, {:v, :Nat, 0}},
+       {:pi, :mot, {:pi, :_, {:var, {:v, :Nat, 0}}, {:const, :star}},
+        {:pi, :base, {:app, {:var, {:v, :mot, 0}}, {:var, {:v, :zero, 0}}},
+         {:pi, :step,
+          {:pi, :nm1, {:var, {:v, :Nat, 0}},
+           {:pi, :_, {:app, {:var, {:v, :mot, 0}}, {:var, {:v, :nm1, 0}}},
+            {:app, {:var, {:v, :mot, 0}}, {:app, {:var, {:v, :succ, 0}}, {:var, {:v, :nm1, 0}}}}}},
+          {:app, {:var, {:v, :mot, 0}}, {:var, {:v, :target, 0}}}}}}}
+  }
+  def get_coc_ax(), do: @coc_axioms
+  def get_coc_rules(), do: @coc_rules
+
+  def typeOf(e, ctx, axioms, rules) do
     typeWith(
       Map.merge(
         ctx,
-        %{
-          {:v, :Nat, 0} => {:const, :star},
-          {:v, :succ, 0} => {:pi, :_, {:var, {:v, :Nat, 0}}, {:var, {:v, :Nat, 0}}},
-          {:v, :zero, 0} => {:var, {:v, :Nat, 0}},
-          {:v, :indNat, 0} =>
-            {:pi, :target, {:var, {:v, :Nat, 0}},
-             {:pi, :mot, {:pi, :_, {:var, {:v, :Nat, 0}}, {:const, :star}},
-              {:pi, :base, {:app, {:var, {:v, :mot, 0}}, {:var, {:v, :zero, 0}}},
-               {:pi, :step,
-                {:pi, :nm1, {:var, {:v, :Nat, 0}},
-                 {:pi, :_, {:app, {:var, {:v, :mot, 0}}, {:var, {:v, :nm1, 0}}},
-                  {:app, {:var, {:v, :mot, 0}},
-                   {:app, {:var, {:v, :succ, 0}}, {:var, {:v, :nm1, 0}}}}}},
-                {:app, {:var, {:v, :mot, 0}}, {:var, {:v, :target, 0}}}}}}}
-        }
+        @ind_nat_context
       ),
-      e
+      e,
+      axioms,
+      rules
     )
   end
 
-  @spec typeWith(context, expr) :: {error, [any]} | {:ok, expr}
+  def typeOf(e, ctx) do
+    typeWith(Map.merge(ctx, @ind_nat_context), e, @coc_axioms, @coc_rules)
+  end
+
+  def typed(nil, term), do: {:InvalidQuantification, term}
+  def typed(s, _), do: {:ok, s}
+
+  @spec typeWith(context, expr, any, any) :: {error, [any]} | {:ok, expr}
   def typeWith(
         _,
-        {:const, c}
+        {:const, c},
+        axioms,
+        _
       ) do
-    with({:ok, s} <- axiom(c), do: {:ok, {:const, s}})
+    with({:ok, s} <- axioms[c] |> typed({:const, c}), do: {:ok, {:const, s}})
   end
 
   def typeWith(
         ctx,
-        {:var, v} = e
+        {:var, v} = e,
+        _,
+        _
       ) do
     case ctx do
       %{^v => t} -> {:ok, t}
@@ -324,27 +348,31 @@ defmodule Core do
 
   def typeWith(
         ctx,
-        {:lam, x, tA, b}
+        {:lam, x, tA, b},
+        axioms,
+        rules
       ) do
     with(
-      {:ok, _} <- typeWith(ctx, tA),
+      {:ok, _} <- typeWith(ctx, tA, axioms, rules),
       ctx1 = insert(ctx, x, tA),
-      {:ok, b1} <- typeWith(ctx1, b),
+      {:ok, b1} <- typeWith(ctx1, b, axioms, rules),
       pi = {:pi, x, tA, b1},
-      {:ok, _} <- typeWith(ctx, pi),
+      {:ok, _} <- typeWith(ctx, pi, axioms, rules),
       do: {:ok, pi}
     )
   end
 
   def typeWith(
         ctx,
-        {:pi, x, tA, tB}
+        {:pi, x, tA, tB},
+        axioms,
+        rules
       ) do
     with(
-      {:ok, {:const, s1}} <- typeWith(ctx, whnf(tA)),
+      {:ok, {:const, s1}} <- typeWith(ctx, whnf(tA), axioms, rules),
       ctx1 = insert(ctx, x, tA),
-      {:ok, {:const, s2}} <- typeWith(ctx1, whnf(tB)),
-      {:ok, s3} <- rule(s1, s2)
+      {:ok, {:const, s2}} <- typeWith(ctx1, whnf(tB), axioms, rules),
+      {:ok, s3} <- rules[{s1, s2}] |> typed({:pi, x, tA, tB})
     ) do
       {:ok, {:const, s3}}
     end
@@ -352,16 +380,18 @@ defmodule Core do
 
   def typeWith(
         ctx,
-        {:app, f, a}
+        {:app, f, a},
+        axioms,
+        rules
       ) do
     with(
-      {:ok, e1} <- typeWith(ctx, f),
+      {:ok, e1} <- typeWith(ctx, f, axioms, rules),
       {:ok, x, tA, tB} <-
         case whnf(e1) do
           {:pi, x, tA, tB} -> {:ok, x, tA, tB}
           _ -> {:NotAFunction, [f, e1]}
         end,
-      {:ok, tA1} <- typeWith(ctx, a)
+      {:ok, tA1} <- typeWith(ctx, a, axioms, rules)
     ) do
       if eq(tA, tA1) do
         a1 = shift(1, x, a)

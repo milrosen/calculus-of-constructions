@@ -265,7 +265,7 @@ defmodule CoreTests do
     #eval fun a : *, b : *. fun x : (and a b) . x a (K a b)")
 
     assert PrettyPrint.printExpr(type) ==
-             "Π(a : *) → Π(b : *) → (Π(c : *) → (a → b → c) → c) → a"
+             "Π[a : *] Π[b : *] (Π[c : *] (a → b → c) → c) → a"
   end
 
   test "Sum types" do
@@ -396,5 +396,17 @@ defmodule CoreTests do
       #eval (+) 2 2")
 
     assert four == single_expr("4")
+  end
+
+  test "universal quantification done uniformly" do
+    {:ok, [_, _, _, {:typeof, type}]} =
+      CalculusOfConstructions.check("
+      #system box star | star : box | (star star star) (star box box) (box star star) (box box box)
+      #def ALL := fun A : *, P : A -> * . {a : A} P a
+      #with A : *, P : A -> *
+      #typeof ALL A P
+      ")
+
+    assert type == {:const, :star}
   end
 end

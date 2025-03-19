@@ -4,9 +4,9 @@ defmodule CalculusOfConstructionsTest do
 
   test "check program" do
     prog = CalculusOfConstructions.check("
-    #type id (fun x : * . x)
+    #typeof id (fun x : * . x)
     #def id := fun x : * -> * . x
-    #type id (fun x : * . x)
+    #typeof id (fun x : * . x)
     ")
 
     assert prog ==
@@ -15,7 +15,7 @@ defmodule CalculusOfConstructionsTest do
                 {:error, "Unbound Variable id"},
                 {:def, :id,
                  {:lam, :x, {:pi, :_, {:const, :star}, {:const, :star}}, {:var, {:v, :x, 0}}}},
-                {:type, {:pi, :_, {:const, :star}, {:const, :star}}}
+                {:typeof, {:pi, :_, {:const, :star}, {:const, :star}}}
               ]}
   end
 
@@ -48,9 +48,9 @@ defmodule CalculusOfConstructionsTest do
     prog = CalculusOfConstructions.check("
     #def id := fun x : Nat . x
     #def idid := fun x : Nat . id x
-    #type idid")
+    #typeof idid")
 
-    assert match?({:ok, [_, _, {:type, _}]}, prog)
+    assert match?({:ok, [_, _, {:typeof, _}]}, prog)
   end
 
   test "parenthesis" do
@@ -62,6 +62,25 @@ defmodule CalculusOfConstructionsTest do
 
     assert {PrettyPrint.printExpr(ast1), PrettyPrint.printExpr(ast2)} ==
              {"(succ (succ (succ (succ zero))))",
-              "λ(a : Nat) → λ(b : Nat) → indNat a (λ(_ : Nat) → Nat) b (λ(_ : Nat) → λ(pm1 : Nat) → (succ pm1))"}
+              "λ(a : Nat) . λ(b : Nat) . indNat a (λ(_ : Nat) . Nat) b (λ(_ : Nat) . λ(pm1 : Nat) . (succ pm1))"}
+  end
+
+  test "simple" do
+    {:ok, [{:system, sorts, axioms, rules}, _, {:typeof, type1}, {:error, errormsg}]} =
+      CalculusOfConstructions.check("
+    #system type box | type : box | (type type type)
+    #with A : type
+    #typeof fun x : A . x
+    #typeof fun x : type . x -> x
+    ")
+
+    {:ok,
+     [
+       {:system, %{type: {:const, :type}, box: {:const, :box}}, %{type: :box},
+        %{{:type, :type} => :type}},
+       {:with, %{{:v, :A, 0} => {:const, :type}}},
+       {:typeof, {:pi, :x, {:var, {:v, :A, 0}}, {:var, {:v, :A, 0}}}},
+       {:error, "attempted to create dependency: (type) → type"}
+     ]}
   end
 end

@@ -100,18 +100,18 @@ defmodule ParserTests do
   end
 
   test "multiple commands" do
-    {:ok, tokens, _} = :lexer.string(~c"#def id := fun x : * . x #type id (fun a : * . a)")
+    {:ok, tokens, _} = :lexer.string(~c"#def id := fun x : * . x #typeof id (fun a : * . a)")
     {:ok, ast} = :parser.parse(tokens)
 
     assert ast == [
              {:def, :id, {:lam, [x: {:const, :star}], {:var, {:v, :x, 0}}}},
-             {:type, :_,
+             {:typeof, :_,
               {:app, {:var, {:v, :id, 0}}, {:lam, [a: {:const, :star}], {:var, {:v, :a, 0}}}}}
            ]
   end
 
   test "parse with command" do
-    {:ok, tokens, _} = :lexer.string(~c"#with A : *, B : *, C : * #type C")
+    {:ok, tokens, _} = :lexer.string(~c"#with A : *, B : *, C : * #typeof C")
     {:ok, ast} = :parser.parse(tokens)
 
     assert ast == [
@@ -121,7 +121,7 @@ defmodule ParserTests do
                 B: {:const, :star},
                 C: {:const, :star}
               ]},
-             {:type, :_, {:var, {:v, :C, 0}}}
+             {:typeof, :_, {:var, {:v, :C, 0}}}
            ]
   end
 
@@ -132,5 +132,17 @@ defmodule ParserTests do
     {:ok, [ast]} = :parser.parse(tokens)
 
     assert match?({:check, :AND, _, _}, ast)
+  end
+
+  test "parse system" do
+    {:ok, tokens, _} =
+      :lexer.string(~c"#system box star | star : box | (star star star) (box box box)")
+
+    {:ok, [ast]} = :parser.parse(tokens)
+
+    assert match?(
+             {:system, [:box, :star], [star: :box], [{:star, :star, :star}, {:box, :box, :box}]},
+             ast
+           )
   end
 end

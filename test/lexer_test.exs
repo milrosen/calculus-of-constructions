@@ -121,12 +121,12 @@ defmodule LexerTests do
   end
 
   test "program as list of commands" do
-    {:ok, tokens, _} = :lexer.string(~c"#type let a = b in c")
+    {:ok, tokens, _} = :lexer.string(~c"#typeof let a = b in c")
 
     assert tokens ==
              [
                {:"#", 1},
-               {:type, 1},
+               {:typeof, 1},
                {:let, 1},
                {:label, 1, :a},
                {:=, 1},
@@ -140,5 +140,32 @@ defmodule LexerTests do
     {:ok, tokens, _} = :lexer.string(~c"75")
 
     assert tokens == [{:number, 1, 75}]
+  end
+
+  test "sorts" do
+    {:ok, tokens, _} =
+      :lexer.string(~c"#system star box | star : box | (star star star) (box box box)")
+
+    assert tokens == [
+             {:"#", 1},
+             {:system, 1},
+             {:label, 1, :star},
+             {:label, 1, :box},
+             {:|, 1},
+             {:label, 1, :star},
+             {:":", 1},
+             {:label, 1, :box},
+             {:|, 1},
+             {:"(", 1},
+             {:label, 1, :star},
+             {:label, 1, :star},
+             {:label, 1, :star},
+             {:")", 1},
+             {:"(", 1},
+             {:label, 1, :box},
+             {:label, 1, :box},
+             {:label, 1, :box},
+             {:")", 1}
+           ]
   end
 end

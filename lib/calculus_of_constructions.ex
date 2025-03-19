@@ -7,7 +7,7 @@ defmodule CalculusOfConstructions do
   require(Desugar)
   require(PrettyPrint)
 
-  @type command :: :def | :type | :eval | :with | :check
+  @type command :: :def | :typeof | :eval | :with | :check | :system
   @type sentence(etype) :: {command, atom, etype} | {:with, [{atom, etype}]}
   @type program(etype) :: [sentence(etype)]
 
@@ -16,7 +16,10 @@ defmodule CalculusOfConstructions do
       {:ok, tokens} <- prog |> to_charlist |> tok,
       {:ok, program} <- parse(tokens)
     ) do
-      {:ok, program |> desugar_program |> handle_commands(Map.new(), Map.new())}
+      {:ok,
+       program
+       |> desugar_program
+       |> handle_commands(Map.new(), Map.new(), Core.get_coc_ax(), Core.get_coc_rules())}
     else
       {:TokenizerError, {line, :lexer, {:illegal, char}}} ->
         {:error, "Tokenizer Error on line #{line}: illegal char #{char}"}
@@ -26,17 +29,27 @@ defmodule CalculusOfConstructions do
     end
   end
 
-  @spec handle_commands(program(Core.expr()), Desugar.context(), Core.context()) :: [
+  @spec handle_commands(
+          program(Core.expr()),
+          Desugar.context(),
+          Core.context(),
+          any,
+          any
+        ) :: [
           {command(), any}
         ]
-  defp handle_commands([], _, _), do: []
+  defp handle_commands([], _, _, _, _), do: []
 
-  defp handle_commands([{:def, name, expr} | rst], terms_ctx, types_ctx) do
+  defp handle_commands([{:def, name, expr} | rst], terms_ctx, types_ctx, axioms, rules) do
     {:ok, subst} = Desugar.delta(terms_ctx, expr)
-    [{:def, name, expr} | handle_commands(rst, Map.put(terms_ctx, name, subst), types_ctx)]
+
+    [
+      {:def, name, expr}
+      | handle_commands(rst, Map.put(terms_ctx, name, subst), types_ctx, axioms, rules)
+    ]
   end
 
-  defp handle_commands([{:with, annos} | rst], terms_ctx, types_ctx) do
+  defp handle_commands([{:with, annos} | rst], terms_ctx, types_ctx, axioms, rules) do
     types_ctx =
       Map.merge(
         Map.new(annos, fn {name, type} ->
@@ -46,26 +59,44 @@ defmodule CalculusOfConstructions do
         types_ctx
       )
 
-    [{:with, types_ctx} | handle_commands(rst, terms_ctx, types_ctx)]
+    [{:with, types_ctx} | handle_commands(rst, terms_ctx, types_ctx, axioms, rules)]
   end
 
-  defp handle_commands([{:check, name, type, term} | rst], terms_ctx, types_ctx) do
+  defp handle_commands([{:system, sorts, axioms, rules} | rst], terms_ctx, types_ctx, _, _) do
+    sorts =
+      Enum.map(sorts, fn sort -> %{sort => {:const, sort}} end)
+      |> Enum.reduce(&Map.merge/2)
+
+    axioms =
+      Enum.map(axioms, fn {left, right} -> %{left => right} end)
+      |> Enum.reduce(&Map.merge/2)
+
+    rules =
+      Enum.map(rules, fn {s1, s2, s3} -> %{{s1, s2} => s3} end)
+      |> Enum.reduce(&Map.merge/2)
+
+    terms_ctx = Map.merge(sorts, terms_ctx)
+
+    [{:system, sorts, axioms, rules} | handle_commands(rst, terms_ctx, types_ctx, axioms, rules)]
+  end
+
+  defp handle_commands([{:check, name, type, term} | rst], terms_ctx, types_ctx, axioms, rules) do
     {:ok, term} = Desugar.delta(terms_ctx, term)
     {:ok, type} = Desugar.delta(terms_ctx, type)
 
     [
-      case Core.typeOf(term, types_ctx) do
+      case Core.typeOf(term, types_ctx, axioms, rules) do
         {:ok, ty} ->
           if Core.eq(ty, type),
-            do: {:check, name, type, term},
+            do: {:check, name, Core.normalize(type), Core.normalize(term)},
             else:
               {:error,
-               "#{PrettyPrint.printExpr(ty)} is not equal to #{PrettyPrint.printExpr(type)}"}
+               "#{PrettyPrint.printExpr(Core.normalize(ty))} is not equal to #{PrettyPrint.printExpr(Core.normalize(type))}"}
 
         err ->
           handle_error(err)
       end
-      | handle_commands(rst, Map.put(terms_ctx, name, term), types_ctx)
+      | handle_commands(rst, Map.put(terms_ctx, name, term), types_ctx, axioms, rules)
     ]
   end
 
@@ -81,29 +112,32 @@ defmodule CalculusOfConstructions do
       {:NotAFunction, [term, type]} ->
         {:error,
          "#{PrettyPrint.printExpr(term)} : #{PrettyPrint.printExpr(type)} is not a function"}
+
+      {:InvalidQuantification, term} ->
+        {:error, "attempted to create dependency: #{PrettyPrint.printExpr(term)}"}
     end
   end
 
-  defp handle_commands([{:type, _, expr} | rst], terms_ctx, types_ctx) do
+  defp handle_commands([{:typeof, _, expr} | rst], terms_ctx, types_ctx, axioms, rules) do
     {:ok, subst} = Desugar.delta(terms_ctx, expr)
 
     [
-      case Core.typeOf(subst, types_ctx) do
+      case Core.typeOf(subst, types_ctx, axioms, rules) do
         {:ok, ty} ->
-          {:type, ty}
+          {:typeof, ty}
 
         err ->
           handle_error(err)
       end
-      | handle_commands(rst, terms_ctx, types_ctx)
+      | handle_commands(rst, terms_ctx, types_ctx, axioms, rules)
     ]
   end
 
-  defp handle_commands([{:eval, _, expr} | rst], terms_ctx, types_ctx) do
+  defp handle_commands([{:eval, _, expr} | rst], terms_ctx, types_ctx, axioms, rules) do
     {:ok, subst} = Desugar.delta(terms_ctx, expr)
 
     [
-      case Core.typeOf(subst, types_ctx) do
+      case Core.typeOf(subst, types_ctx, axioms, rules) do
         {:ok, ty} ->
           {:eval, Core.normalize(subst), Core.normalize(ty)}
 
@@ -111,7 +145,7 @@ defmodule CalculusOfConstructions do
           {:error,
            "Could not eval term #{PrettyPrint.printExpr(subst)} since it failed to typecheck"}
       end
-      | handle_commands(rst, terms_ctx, types_ctx)
+      | handle_commands(rst, terms_ctx, types_ctx, axioms, rules)
     ]
   end
 
@@ -127,6 +161,10 @@ defmodule CalculusOfConstructions do
       end)
 
     [{:with, desugared} | desugar_program(rst)]
+  end
+
+  defp desugar_program([{:system, sorts, axioms, rules} | rst]) do
+    [{:system, sorts, axioms, rules} | desugar_program(rst)]
   end
 
   defp desugar_program([{:check, name, type, term} | rst]) do
