@@ -28,7 +28,7 @@ Lambda terms can be written `\a : A -> b`, or `fun a : A . b`
 
 Pi terms can be written `\/a : A -> B`, `forall a : A, B`, `{a : A} B`, or `A -> B` for the non-dependent type. 
 
-Since we have no type inference, there is no difference between `{a : A} B` and `forall a : A, B`.
+Since we don't unify, there is no difference between `{a : A} B` and `forall a : A, B`.
 
 Both Lambda and Pi terms are curried by default, but Pi terms written with the `forall` syntax are not (this is personal preference).
 
