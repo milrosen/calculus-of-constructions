@@ -18,7 +18,7 @@ Each line of code is a command followed by some optional arguments. These argume
 
 - **#eval** *term*: types the term and prints the normalized version of the term if the type exists
 
-- **#system** *sorts* | *axioms* | *rules*: defines a pts with the specified sorts, axioms and rules. "star," "box" and "triangle" will be displayed as $\star$, $\Box$ and $\Delta$, but every other sort is just a non-unicode string. Without a system command, every term is typed with the full $\lambda$C rules
+- **#system** *sorts* | *axioms* | *rules*: defines a pts with the specified sorts, axioms and rules. "star," "box" and "triangle" will be displayed as $\star$, $\Box$ and $\Delta$, but every other sort is just a non-unicode string. Without a system command, every term is typed with the full $\lambda C$  rules
 
 For more information about what these commands actually mean, read the paper or notes from the beginning.
 
